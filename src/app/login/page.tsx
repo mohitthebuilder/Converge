@@ -1,37 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const router = useRouter()
-
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    router.push('/')
-    router.refresh()
-  }
-
   async function handleGoogleLogin() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
@@ -44,17 +16,13 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-full items-center justify-center px-6 py-12">
-      <div className="w-full max-w-[380px]">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Converge</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">Sign in to your account</p>
-        </div>
+      <div className="w-full max-w-[380px] text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Converge</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">All your tools. One answer.</p>
 
-        {/* Google OAuth */}
         <Button
           variant="outline"
-          className="w-full gap-2 py-5 text-sm font-medium"
+          className="mt-8 w-full gap-2 py-5 text-sm font-medium"
           onClick={handleGoogleLogin}
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -66,59 +34,8 @@ export default function LoginPage() {
           Continue with Google
         </Button>
 
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs">
-            <span className="bg-background px-3 text-muted-foreground/60">or</span>
-          </div>
-        </div>
-
-        {/* Email form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-[13px] text-foreground/80">Email</Label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              required
-              className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-[13px] text-foreground/80">Password</Label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/10"
-            />
-          </div>
-
-          {error && (
-            <p className="text-[13px] text-destructive">{error}</p>
-          )}
-
-          <Button type="submit" disabled={loading} className="w-full py-5 text-sm font-medium">
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Button>
-        </form>
-
-        {/* Footer */}
-        <p className="mt-6 text-center text-[13px] text-muted-foreground">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="font-medium text-primary transition-colors hover:text-primary/80">
-            Sign up
-          </Link>
+        <p className="mt-6 text-xs text-muted-foreground/60">
+          By continuing, you agree to Converge&apos;s Terms of Service.
         </p>
       </div>
     </div>
