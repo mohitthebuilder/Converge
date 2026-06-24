@@ -29,18 +29,12 @@ interface SearchViewProps {
 }
 
 const ALL_TOOLS = [
-  { key: 'google_drive', name: 'Google Drive', authUrl: '/api/auth/google-drive',
-    icon: <svg viewBox="0 0 87.3 78" className="h-4 w-4"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066DA"/><path d="M43.65 25.15L29.9 1.35c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 00-1.2 4.5h27.5l16.15-28z" fill="#00AC47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57.7c.8-1.4 1.2-2.95 1.2-4.5H59.8L43.65 25.15 27.5 53.2h32.1l13.95 23.6z" fill="#EA4335"/><path d="M43.65 25.15L57.4 1.35C56.05.55 54.5 0 52.85 0H34.44c-1.65 0-3.2.55-4.55 1.35l13.76 23.8z" fill="#00832D"/><path d="M59.8 53.2H27.5l-13.75 23.6c1.35.8 2.9 1.2 4.55 1.2h50.7c1.65 0 3.2-.45 4.55-1.2L59.8 53.2z" fill="#2684FC"/><path d="M73.4 26.5L60.7 4.65c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53.2h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z" fill="#FFBA00"/></svg> },
-  { key: 'slack', name: 'Slack', authUrl: null,
-    icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"/><path d="M15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z" fill="#ECB22E"/></svg> },
-  { key: 'notion', name: 'Notion', authUrl: null,
-    icon: <svg viewBox="0 0 100 100" className="h-4 w-4" fill="none"><path d="M6.017 4.313l55.333-4.087c6.797-.583 8.543-.19 12.817 2.917l17.663 12.443c2.913 2.14 3.883 2.723 3.883 5.053v68.243c0 4.277-1.553 6.807-6.99 7.193L24.467 99.967c-4.08.193-6.023-.39-8.16-3.113L3.3 79.94c-2.333-3.113-3.3-5.443-3.3-8.167V11.113c0-3.497 1.553-6.413 6.017-6.8z" fill="#fff" stroke="#000" strokeWidth="4"/><path d="M24.838 34.264V97.85c0 3.483 1.856 4.86 5.75 4.617l62.057-3.63c3.9-.237 4.397-2.38 4.397-5.223V30.173c0-2.843-.868-4.213-3.278-3.987L27.483 30.06c-2.753.237-2.645 1.363-2.645 4.204zm56.332 3.477c.41 1.843 0 3.687-1.843 3.897l-3.073.596v45.077c-2.667 1.437-5.12 2.257-7.163 2.257-3.277 0-4.1-1.027-6.557-4.1l-20.08-31.543v30.53l6.35 1.44s0 3.687-5.12 3.687l-14.13.82c-.41-.82 0-2.873 1.437-3.277l3.687-1.023V42.597l-5.12-.41c-.41-1.843.617-4.51 3.483-4.72l15.157-1.02 20.87 31.95V39.357l-5.327-.616c-.41-2.253 1.233-3.897 3.277-4.103l14.157-.897z" fill="#000"/></svg> },
-  { key: 'jira', name: 'Jira', authUrl: null,
-    icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M11.53 2c0 2.4 1.97 4.35 4.35 4.35h1.78v1.7c0 2.4 1.94 4.34 4.34 4.35V2.84a.84.84 0 00-.84-.84H11.53zM6.77 6.8a4.362 4.362 0 004.34 4.34h1.78v1.72c0 2.4 1.95 4.34 4.35 4.34V7.63a.84.84 0 00-.84-.84H6.77zM2 11.6c0 2.4 1.95 4.34 4.35 4.35h1.78v1.7c.01 2.4 1.95 4.34 4.35 4.35v-9.56a.84.84 0 00-.84-.84H2z" fill="#2684FF"/></svg> },
-  { key: 'gmail', name: 'Gmail', authUrl: null,
-    icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path fill="#4285f4" d="M2 6v12c0 1.1.9 2 2 2h3V9.2L2 5.5V6z"/><path fill="#34a853" d="M17 20h3c1.1 0 2-.9 2-2V6l-5 3.2V20z"/><path fill="#fbbc04" d="M17 4v5.2l5-3.7V4c0-2.3-2.6-3.6-4.4-2.2L17 4z"/><path fill="#ea4335" d="M7 9.2V4l5 3.75L17 4v5.2l-5 3.75L7 9.2z"/><path fill="#c5221f" d="M2 5.5V4c0-2.3 2.6-3.6 4.4-2.2L7 4v5.2L2 5.5z"/></svg> },
-  { key: 'figma', name: 'Figma', authUrl: null,
-    icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M15.852 8.981h-4.588V0h4.588c2.476 0 4.49 2.014 4.49 4.49s-2.014 4.491-4.49 4.491z" fill="#1ABCFE"/><path d="M6.763 24c2.476 0 4.49-2.014 4.49-4.49v-4.49H6.764c-2.476 0-4.49 2.014-4.49 4.49S4.287 24 6.763 24z" fill="#0ACF83"/><path d="M6.763 15.02h4.49V5.53h-4.49c-2.476 0-4.49 2.014-4.49 4.49s2.014 4.49 4.49 4.49z" fill="#A259FF"/><path d="M6.763 5.021h4.49V-4.47h-4.49C4.287-4.47 2.273-2.456 2.273.02s2.014 5.001 4.49 5.001z" fill="#F24E1E" transform="translate(0 4.49)"/><path d="M15.852 15.02a4.49 4.49 0 100-8.98 4.49 4.49 0 000 8.98z" fill="#FF7262"/></svg> },
+  { key: 'google_drive', name: 'Google Drive', authUrl: '/api/auth/google-drive', icon: '/icons/googledrive.svg' },
+  { key: 'slack', name: 'Slack', authUrl: null, icon: '/icons/slack.svg' },
+  { key: 'notion', name: 'Notion', authUrl: null, icon: '/icons/notion.svg' },
+  { key: 'jira', name: 'Jira', authUrl: null, icon: '/icons/jira.svg' },
+  { key: 'gmail', name: 'Gmail', authUrl: null, icon: '/icons/gmail.svg' },
+  { key: 'figma', name: 'Figma', authUrl: null, icon: '/icons/figma.svg' },
 ]
 
 const PLACEHOLDERS = [
@@ -139,7 +133,7 @@ export default function SearchView({ user, connections, history }: SearchViewPro
 
   function getToolIcon(toolName: string) {
     const tool = ALL_TOOLS.find(t => t.name === toolName)
-    return tool?.icon ?? null
+    return tool ? <img src={tool.icon} alt={tool.name} className="h-4 w-4" /> : null
   }
 
   return (
@@ -239,25 +233,35 @@ export default function SearchView({ user, connections, history }: SearchViewPro
                   Search across your connected tools. Get answers with cited sources.
                 </p>
 
-                {ALL_TOOLS.length > 0 && (
-                  <div className="mt-12">
-                    <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-widest text-muted-foreground/40">
-                      Connect more tools
-                    </p>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {ALL_TOOLS.map(tool => (
+                <div className="mt-12">
+                  <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-widest text-muted-foreground/40">
+                    Your tools
+                  </p>
+                  <div className="grid grid-cols-3 gap-2 mx-auto max-w-[360px]">
+                    {ALL_TOOLS.map(tool => {
+                      const isConnected = connectedKeys.has(tool.key)
+                      return (
                         <a
                           key={tool.key}
                           href={tool.authUrl || '#'}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-2 text-xs font-medium text-foreground transition-all duration-150 hover:border-primary/30 hover:shadow-sm"
+                          className={`relative inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-150 hover:shadow-sm ${
+                            isConnected
+                              ? 'border-emerald-200 bg-emerald-50/50 text-foreground hover:border-emerald-300'
+                              : 'border-border/60 bg-background text-foreground hover:border-primary/30'
+                          }`}
                         >
-                          {tool.icon}
+                          <img src={tool.icon} alt={tool.name} className="h-4 w-4" />
                           {tool.name}
+                          {isConnected && (
+                            <svg className="h-3 w-3 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </a>
-                      ))}
-                    </div>
+                      )
+                    })}
                   </div>
-                )}
+                </div>
               </div>
             )}
 
