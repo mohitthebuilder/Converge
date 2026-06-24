@@ -1,13 +1,13 @@
 import { getSessionUser } from '@/lib/auth/session'
 import { supabaseServer } from '@/lib/db/supabase-server'
-import OnboardingScreen from '@/components/OnboardingScreen'
+import { redirect } from 'next/navigation'
 import SearchView from '@/components/SearchView'
 
 export default async function Home() {
   const user = await getSessionUser()
 
   if (!user) {
-    return <OnboardingScreen />
+    redirect('/login')
   }
 
   const { data: connections } = await supabaseServer

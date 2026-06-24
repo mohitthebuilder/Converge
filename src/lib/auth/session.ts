@@ -1,48 +1,58 @@
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
 
-const COOKIE_NAME = 'converge_session'
-const MAX_AGE = 30 * 24 * 60 * 60 // 30 days
-
 export async function getSession(): Promise<string | null> {
-  const cookieStore = await cookies()
-  const session = cookieStore.get(COOKIE_NAME)
-  return session?.value || null
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return null
+
+  const { data: user } = await supabaseServer
+    .from('users')
+    .select('id')
+    .eq('email', authUser.email!)
+    .single()
+
+  if (user) return user.id
+
+  const name = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User'
+  const { data: newUser } = await supabaseServer
+    .from('users')
+    .insert({
+      id: authUser.id,
+      email: authUser.email!,
+      name,
+      avatar_url: authUser.user_metadata?.avatar_url || null,
+    })
+    .select('id')
+    .single()
+
+  return newUser?.id || null
 }
 
 export async function getSessionUser() {
-  const userId = await getSession()
-  if (!userId) return null
+  const supabase = await createClient()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) return null
 
   const { data: user } = await supabaseServer
     .from('users')
     .select('id, email, name, avatar_url')
-    .eq('id', userId)
+    .eq('email', authUser.email!)
     .single()
 
-  return user
-}
+  if (user) return user
 
-export function createSessionCookie(userId: string) {
-  return {
-    name: COOKIE_NAME,
-    value: userId,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: MAX_AGE,
-    path: '/',
-  }
-}
+  const name = authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User'
+  const { data: newUser } = await supabaseServer
+    .from('users')
+    .insert({
+      id: authUser.id,
+      email: authUser.email!,
+      name,
+      avatar_url: authUser.user_metadata?.avatar_url || null,
+    })
+    .select('id, email, name, avatar_url')
+    .single()
 
-export function clearSessionCookie() {
-  return {
-    name: COOKIE_NAME,
-    value: '',
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 0,
-    path: '/',
-  }
+  return newUser
 }
