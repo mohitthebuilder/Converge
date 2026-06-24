@@ -10,6 +10,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'Converge — All your tools. One answer.',
   description: 'AI-powered knowledge search for Product Managers',
+  icons: {
+    icon: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({

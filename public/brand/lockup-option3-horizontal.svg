@@ -1,0 +1,9 @@
+<svg viewBox="0 0 260 50" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(2, 3)">
+    <polygon points="22,0 44,20 22,20" fill="#818CF8"/>
+    <polygon points="22,0 0,20 22,20" fill="#4F46E5"/>
+    <polygon points="0,20 22,20 22,42" fill="#6366F1"/>
+    <polygon points="44,20 22,20 22,42" fill="#A5B4FC"/>
+  </g>
+  <text x="58" y="35" font-family="Inter, system-ui, sans-serif" font-size="28" font-weight="600" fill="#111827" letter-spacing="-0.025em">Converge</text>
+</svg>
