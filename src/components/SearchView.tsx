@@ -244,7 +244,7 @@ export default function SearchView({ user, connections, history }: SearchViewPro
                         <a
                           key={tool.key}
                           href={tool.authUrl || '#'}
-                          className={`relative inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-150 hover:shadow-sm ${
+                          className={`relative inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-150 hover:shadow-sm ${
                             isConnected
                               ? 'border-emerald-200 bg-emerald-50/50 text-foreground hover:border-emerald-300'
                               : 'border-border/60 bg-background text-foreground hover:border-primary/30'
