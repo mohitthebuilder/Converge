@@ -158,8 +158,8 @@ export default function SearchView({ user, connections, history }: SearchViewPro
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </Button>
-            <button onClick={handleNewQuery} className="text-[15px] font-semibold tracking-tight text-foreground transition-opacity duration-150 hover:opacity-70">
-              Converge
+            <button onClick={handleNewQuery} className="transition-opacity duration-150 hover:opacity-70">
+              <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-6" />
             </button>
           </div>
 
