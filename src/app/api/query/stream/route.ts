@@ -14,7 +14,7 @@ Rules:
 3. If chunks contain conflicting information, present both views with their citations.
 4. If the chunks are insufficient to fully answer the question, say so explicitly — never guess.
 5. Structure your answer for a PM audience: lead with the decision/answer, then supporting details.
-6. Be concise. Match answer length to query complexity. Short question = concise answer.
+6. Match answer depth to query complexity. Basic question = concise answer. Complex question = thorough answer.
 7. Do NOT wrap your response in JSON or any other format. Just write the answer directly.`
 
 interface SourceGroup {
