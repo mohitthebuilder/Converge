@@ -205,9 +205,12 @@ export default function SearchView({ user, connections, history }: SearchViewPro
             {/* Empty state */}
             {!hasAnswer && (
               <div className="mb-8">
-                <h1 className="mb-10 text-center text-[28px] font-medium tracking-tight text-foreground/90">
-                  What do you want to know?
-                </h1>
+                <div className="mb-3 flex justify-center">
+                  <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-12" />
+                </div>
+                <p className="mb-10 text-center text-[15px] text-muted-foreground">
+                  All your tools. One answer.
+                </p>
 
                 <form onSubmit={handleSearch} className="relative">
                   <input
