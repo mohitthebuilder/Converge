@@ -30,13 +30,13 @@ interface SearchViewProps {
 
 const ALL_TOOLS = [
   { key: 'google_drive', name: 'Google Drive', authUrl: '/api/auth/google-drive',
-    icon: <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"><path d="M7.71 3.5L1.15 15l3.43 5.95h6.87L7.71 3.5z" fill="#0066DA"/><path d="M16.29 3.5H7.71l3.74 17.45h6.87l3.43-5.95L16.29 3.5z" fill="#00AC47" opacity=".8"/><path d="M1.15 15l3.43 5.95h13.74l-3.43-5.95H1.15z" fill="#EA4335" opacity=".8"/><path d="M16.29 3.5l5.56 11.5-3.43 5.95-6.87-17.45h4.74z" fill="#FBBC04" opacity=".9"/></svg> },
+    icon: <svg viewBox="0 0 87.3 78" className="h-4 w-4"><path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8H0c0 1.55.4 3.1 1.2 4.5l5.4 9.35z" fill="#0066DA"/><path d="M43.65 25.15L29.9 1.35c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 00-1.2 4.5h27.5l16.15-28z" fill="#00AC47"/><path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75L86.1 57.7c.8-1.4 1.2-2.95 1.2-4.5H59.8L43.65 25.15 27.5 53.2h32.1l13.95 23.6z" fill="#EA4335"/><path d="M43.65 25.15L57.4 1.35C56.05.55 54.5 0 52.85 0H34.44c-1.65 0-3.2.55-4.55 1.35l13.76 23.8z" fill="#00832D"/><path d="M59.8 53.2H27.5l-13.75 23.6c1.35.8 2.9 1.2 4.55 1.2h50.7c1.65 0 3.2-.45 4.55-1.2L59.8 53.2z" fill="#2684FC"/><path d="M73.4 26.5L60.7 4.65c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25.15 59.8 53.2h27.45c0-1.55-.4-3.1-1.2-4.5L73.4 26.5z" fill="#FFBA00"/></svg> },
   { key: 'slack', name: 'Slack', authUrl: null,
     icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313z" fill="#E01E5A"/><path d="M8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312z" fill="#36C5F0"/><path d="M18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zm-1.27 0a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.163 0a2.528 2.528 0 0 1 2.523 2.522v6.312z" fill="#2EB67D"/><path d="M15.163 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.163 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zm0-1.27a2.527 2.527 0 0 1-2.52-2.523 2.527 2.527 0 0 1 2.52-2.52h6.315A2.528 2.528 0 0 1 24 15.163a2.528 2.528 0 0 1-2.522 2.523h-6.315z" fill="#ECB22E"/></svg> },
   { key: 'notion', name: 'Notion', authUrl: null,
     icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L18.29 2.09c-.42-.326-.98-.7-2.055-.607L3.01 2.648c-.466.046-.56.28-.373.466l1.822 1.094zm.793 3.358v13.91c0 .746.373 1.026 1.213.98l14.523-.84c.84-.046.933-.56.933-1.166V6.63c0-.606-.233-.933-.746-.886l-15.177.886c-.56.047-.746.327-.746.933zm14.337.7c.093.42 0 .84-.42.886l-.7.14v10.264c-.607.327-1.166.513-1.633.513-.746 0-.933-.233-1.493-.933l-4.573-7.178v6.952l1.446.327s0 .84-1.166.84l-3.218.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.093-.42.14-1.026.793-1.073l3.452-.233 4.759 7.272V9.527l-1.213-.14c-.093-.513.28-.886.746-.933l3.218-.186z" fill="currentColor"/></svg> },
   { key: 'jira', name: 'Jira', authUrl: null,
-    icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.057A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.005-1.005z" fill="#2684FF"/><path d="M6.348 6.349H16.89a5.218 5.218 0 00-5.233-5.215H9.528V-.924A5.215 5.215 0 004.315 4.29v11.482a1.005 1.005 0 001.005 1.005h6.674a5.218 5.218 0 005.232-5.215h-5.645A5.218 5.218 0 006.35 6.35z" fill="#2684FF" opacity=".8"/></svg> },
+    icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M11.53 2c0 2.4 1.97 4.35 4.35 4.35h1.78v1.7c0 2.4 1.94 4.34 4.34 4.35V2.84a.84.84 0 00-.84-.84H11.53zM6.77 6.8a4.362 4.362 0 004.34 4.34h1.78v1.72c0 2.4 1.95 4.34 4.35 4.34V7.63a.84.84 0 00-.84-.84H6.77zM2 11.6c0 2.4 1.95 4.34 4.35 4.35h1.78v1.7c.01 2.4 1.95 4.34 4.35 4.35v-9.56a.84.84 0 00-.84-.84H2z" fill="#2684FF"/></svg> },
   { key: 'gmail', name: 'Gmail', authUrl: null,
     icon: <svg viewBox="0 0 24 24" className="h-4 w-4"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 010 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="#EA4335"/></svg> },
   { key: 'figma', name: 'Figma', authUrl: null,
@@ -247,24 +247,14 @@ export default function SearchView({ user, connections, history }: SearchViewPro
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {unconnected.map(tool => (
-                        tool.authUrl ? (
-                          <a
-                            key={tool.key}
-                            href={tool.authUrl}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-2 text-xs font-medium text-foreground transition-all duration-150 hover:border-primary/30 hover:shadow-sm"
-                          >
-                            {tool.icon}
-                            {tool.name}
-                          </a>
-                        ) : (
-                          <span
-                            key={tool.key}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border/40 px-3 py-2 text-xs text-muted-foreground/40"
-                          >
-                            <span className="opacity-40">{tool.icon}</span>
-                            {tool.name}
-                          </span>
-                        )
+                        <a
+                          key={tool.key}
+                          href={tool.authUrl || '#'}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-2 text-xs font-medium text-foreground transition-all duration-150 hover:border-primary/30 hover:shadow-sm"
+                        >
+                          {tool.icon}
+                          {tool.name}
+                        </a>
                       ))}
                     </div>
                   </div>
