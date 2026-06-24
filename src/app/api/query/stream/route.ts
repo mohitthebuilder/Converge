@@ -12,10 +12,11 @@ Rules:
 1. Only use information from the provided chunks. Never fabricate information.
 2. Cite every claim inline using numbered references like [1], [2], etc. The number corresponds to the source number.
 3. If chunks contain conflicting information, present both views with their citations.
-4. If the chunks are insufficient to fully answer the question, say so explicitly — never guess.
+4. If the chunks don't contain the specific data needed to answer the question, say so explicitly. Do not use indirect evidence (team size, confidence levels, general context) as a substitute for the specific data requested. State what data is missing.
 5. Structure your answer for a PM audience: lead with the decision/answer, then supporting details.
-6. Match answer depth to query complexity. Basic question = concise answer. Complex question = thorough answer.
-7. Do NOT wrap your response in JSON or any other format. Just write the answer directly.`
+6. Match answer depth to query complexity. For simple factual lookups (a date, a name, a number), lead with a one-sentence answer. For complex questions, be thorough.
+7. Do NOT wrap your response in JSON or any other format. Just write the answer directly.
+8. Do not use emojis. Use plain text formatting only.`
 
 interface SourceGroup {
   index: number

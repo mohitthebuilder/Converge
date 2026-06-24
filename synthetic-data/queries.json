@@ -1,0 +1,186 @@
+{
+  "company": "Orion",
+  "description": "20 test queries across 5 complexity levels for a B2B SaaS developer tools company. Each query maps to expected source documents and a ground truth answer summary.",
+  "queries": [
+    {
+      "id": "Q01",
+      "query": "What's the launch date for Studio v3.0?",
+      "level": "basic",
+      "persona": "any",
+      "expected_sources": ["doc-01-studio-prd"],
+      "ground_truth": "August 15, 2026. Internal beta starts July 28. GA rollout to all customers by August 22.",
+      "tests": "Single-doc factual lookup, concise answer expected"
+    },
+    {
+      "id": "Q02",
+      "query": "Who is the PM for Orion Connect?",
+      "level": "basic",
+      "persona": "any",
+      "expected_sources": ["doc-10-org-chart", "doc-07-product-review"],
+      "ground_truth": "Priya Sharma. She joined 3 months ago from Datadog. Reports to Anya Patel (CPO).",
+      "tests": "People lookup across docs"
+    },
+    {
+      "id": "Q03",
+      "query": "What's our current ARR?",
+      "level": "basic",
+      "persona": "any",
+      "expected_sources": ["doc-08-board-update"],
+      "ground_truth": "$4.2M ARR as of Q2 2026, up from $2.8M at end of Q1. 140 paying customers.",
+      "tests": "Metric retrieval from structured summary"
+    },
+    {
+      "id": "Q04",
+      "query": "What database does Orion use?",
+      "level": "basic",
+      "persona": "any",
+      "expected_sources": ["doc-09-tech-architecture"],
+      "ground_truth": "PostgreSQL on AWS RDS for primary data. Redis for caching and session management. Considering TimescaleDB for usage analytics.",
+      "tests": "Technical fact lookup"
+    },
+    {
+      "id": "Q05",
+      "query": "What were the key findings from the Meridian user research?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-06-meridian-research"],
+      "ground_truth": "Four key findings: (1) API auth flow too complex — 3 separate token exchanges needed, (2) No audit logging for compliance, (3) Rate limiting too aggressive for enterprise workloads, (4) Onboarding took 3 weeks vs. their 1-week target. The API auth issue was the highest priority blocker for their procurement team.",
+      "tests": "Multi-point retrieval from single research doc"
+    },
+    {
+      "id": "Q06",
+      "query": "What are the Q3 OKRs for the Connect team?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-05-okr-planning"],
+      "ground_truth": "O1: Grow marketplace to 50 published integrations (KR: 30 partner-built, 20 first-party). O2: Reduce API gateway p99 latency to <200ms. O3: Close 3 enterprise deals (KR: Meridian, Arclight, Vossen). Confidence: O1 high, O2 medium, O3 low due to Meridian stalling.",
+      "tests": "Structured data retrieval, multiple items"
+    },
+    {
+      "id": "Q07",
+      "query": "Why was Orion Mobile killed?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-04-mobile-decision", "doc-03-mobile-prd"],
+      "ground_truth": "Killed June 2, 2026. Three reasons: (1) DAU never exceeded 120 in 8-week pilot — target was 500, (2) Engineering cost was 2.5 FTEs for <3% of total sessions, (3) Reorg meant no dedicated mobile squad. Anya, Marcos, and Jake all agreed. Decision was to invest those resources in Connect instead. The original Mobile PRD is archived — should not be used for planning.",
+      "tests": "Decision archaeology — must surface kill decision, not the archived PRD's optimistic vision"
+    },
+    {
+      "id": "Q08",
+      "query": "What's the pricing model for Orion Connect?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-16-pricing-sheet", "doc-02-connect-prd"],
+      "ground_truth": "Three tiers: Free (100 API calls/day, 5 integrations), Pro ($299/mo — 10K calls/day, 25 integrations, priority support), Enterprise (custom pricing — unlimited calls, SSO, audit logs, dedicated CSM). Enterprise pricing anchored at $1,200/mo but negotiable for annual commits.",
+      "tests": "Structured pricing data + narrative context"
+    },
+    {
+      "id": "Q09",
+      "query": "What's the current status of the Meridian enterprise deal?",
+      "level": "complex",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-06-meridian-research", "doc-07-product-review", "doc-14-sales-product-sync"],
+      "ground_truth": "Stalled. Meridian completed technical evaluation in May. Three blockers: (1) API auth simplification not shipped yet (in Studio v3.0 scope), (2) SOC2 Type II not started — they require it for vendor procurement, (3) Tom (VP Sales) reports their champion (Dana Torres, VP Eng at Meridian) is getting pressure from their CISO. Deal value: $180K/yr. Tom wants auth fix by August 1 or we risk losing to Postman. Anya flagged this as top company risk in product review.",
+      "tests": "Cross-doc synthesis — sales, research, and product review perspectives"
+    },
+    {
+      "id": "Q10",
+      "query": "How has the Studio roadmap changed since the reorg?",
+      "level": "complex",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-01-studio-prd", "doc-15-studio-v25-retro", "doc-07-product-review", "doc-10-org-chart"],
+      "ground_truth": "Major shift. Pre-reorg (before March): Studio v3.0 was focused on collaboration features (real-time editing, comments, team workspaces). Post-reorg: priorities shifted to enterprise hardening — SSO, audit logging, role-based access, API auth overhaul. Collaboration features pushed to v3.1. Reason: Meridian deal + 3 other enterprise prospects all need security/compliance features first. Marcos was frustrated — noted in product review that 'we keep deprioritizing the things that got us here.' Jake agreed but said enterprise features are table stakes.",
+      "tests": "Temporal comparison, conflicting priorities, emotional context"
+    },
+    {
+      "id": "Q11",
+      "query": "What are the main risks to hitting Q3 targets?",
+      "level": "complex",
+      "persona": "cpo",
+      "expected_sources": ["doc-05-okr-planning", "doc-07-product-review", "doc-14-sales-product-sync", "doc-13-sprint-retro"],
+      "ground_truth": "Four risks: (1) Meridian deal stalling — $180K deal, blockers unresolved, (2) Studio v3.0 scope creep from enterprise features pushing timeline, (3) Connect team velocity dropping — flaky test suite consuming 30% of sprint, (4) SOC2 Type II not started and enterprise deals require it. Mitigation attempted: Anya proposed descoping collaboration features from v3.0 to protect August launch.",
+      "tests": "Risk synthesis across 4+ documents"
+    },
+    {
+      "id": "Q12",
+      "query": "What technical debt is blocking the Studio team?",
+      "level": "complex",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-09-tech-architecture", "doc-07-product-review", "doc-13-sprint-retro", "doc-17-design-review"],
+      "ground_truth": "Three main items: (1) REST-to-gRPC migration half-done — 40% of endpoints still on REST, causing dual maintenance overhead. Jake estimates 3 sprints to complete. (2) Dashboard component library inconsistent — Sarah flagged in design review that Studio uses 3 different date pickers and 2 modal systems. (3) Flaky integration test suite — 15% failure rate on CI, team wastes ~4 hours/week rerunning. Connect retro also mentions API gateway config drift between staging and prod.",
+      "tests": "Technical detail synthesis across code-adjacent docs"
+    },
+    {
+      "id": "Q13",
+      "query": "I just joined the Connect team. What do I need to know about our product strategy?",
+      "level": "persona",
+      "persona": "new_pm",
+      "expected_sources": ["doc-02-connect-prd", "doc-10-org-chart", "doc-19-onboarding-guide", "doc-20-product-vision"],
+      "ground_truth": "Should cover: (1) Connect is Orion's API marketplace/gateway product, launched 6 months ago, (2) Your team: you report to Anya (CPO), eng lead is Jake, (3) Key metric: 50 integrations target for Q3, (4) Big deal: Meridian Corp enterprise evaluation in progress, (5) Strategy: Connect is the growth lever — Studio is mature, Connect drives expansion revenue and platform lock-in, (6) Immediate priorities: marketplace growth + enterprise auth improvements, (7) Note: there was a reorg 3 months ago that created dedicated Studio/Connect squads.",
+      "tests": "Broad onboarding synthesis — should be thorough, not concise"
+    },
+    {
+      "id": "Q14",
+      "query": "Are we on track for Q3 OKRs across both products?",
+      "level": "persona",
+      "persona": "cpo",
+      "expected_sources": ["doc-05-okr-planning", "doc-07-product-review", "doc-08-board-update"],
+      "ground_truth": "Mixed. Studio: O1 (enterprise features) — on track but scope expanded, O2 (reduce churn) — green, 4.2% → 3.8% this quarter. Connect: O1 (50 integrations) — at 31, on track, O2 (latency) — amber, p99 at 340ms vs. 200ms target, O3 (3 enterprise deals) — red, Meridian stalling, Arclight in early talks, Vossen not started. Overall: Studio probably hits targets with the descoped v3.0. Connect's enterprise deal OKR is the biggest risk.",
+      "tests": "Cross-product executive synthesis"
+    },
+    {
+      "id": "Q15",
+      "query": "What feedback has Meridian given about our API authentication?",
+      "level": "persona",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-06-meridian-research", "doc-09-tech-architecture"],
+      "ground_truth": "Three specific complaints: (1) Current flow requires 3 separate token exchanges (app token → user token → scoped token) — they want single OAuth2 flow, (2) No support for SAML/SSO — their employees use Okta, they won't create separate Orion accounts, (3) No API key rotation without downtime — their security policy requires 90-day rotation. Jake's tech spec proposes consolidating to single OAuth2 + PKCE flow in v3.0. Target: API auth overhaul ships by August 1.",
+      "tests": "Specific feedback + technical response synthesis"
+    },
+    {
+      "id": "Q16",
+      "query": "What's our approach to SOC2 compliance?",
+      "level": "edge",
+      "persona": "any",
+      "expected_sources": ["doc-18-soc2-checklist", "doc-14-sales-product-sync"],
+      "ground_truth": "Early stage — mostly a TODO list. SOC2 checklist exists as a draft with ~40% of items addressed. Key gaps: no formal incident response plan, no vendor security assessment process, audit logging not yet implemented. Tom flagged in sales sync that Meridian and 2 other enterprise prospects require SOC2 Type II. No timeline set. Anya acknowledged it's a gap but hasn't staffed it yet. Honest answer: we're not ready and there's no concrete plan.",
+      "tests": "Handling incomplete/draft data — should surface uncertainty, not fabricate completeness"
+    },
+    {
+      "id": "Q17",
+      "query": "Should we build native mobile support?",
+      "level": "edge",
+      "persona": "any",
+      "expected_sources": ["doc-04-mobile-decision", "doc-03-mobile-prd"],
+      "ground_truth": "No — this was already tried and killed. Mobile was piloted for 8 weeks, killed June 2, 2026 due to low adoption (120 DAU vs. 500 target) and high cost (2.5 FTEs for <3% sessions). Resources redirected to Connect. The original Mobile PRD is archived. Answer should lead with the kill decision, not the old PRD's arguments for mobile.",
+      "tests": "TRAP — outdated doc should not override the decision log. Tests temporal reasoning."
+    },
+    {
+      "id": "Q18",
+      "query": "What did Tom say about the pricing change?",
+      "level": "edge",
+      "persona": "any",
+      "expected_sources": ["doc-14-sales-product-sync", "doc-11-1on1-notes"],
+      "ground_truth": "Tom pushed back hard in the sales-product sync: wants Enterprise tier starting at $999/mo instead of $1,200 to be competitive with Postman's team plan. In Anya's 1:1 with Marcos, she mentioned Tom 'keeps lobbying for lower pricing but hasn't shown data that price is the actual blocker — every lost deal he cites was a feature gap, not a price gap.' No decision made yet.",
+      "tests": "Person-specific retrieval across informal docs, conflicting internal perspectives"
+    },
+    {
+      "id": "Q19",
+      "query": "Compare the Connect and Studio team velocity this quarter",
+      "level": "edge",
+      "persona": "any",
+      "expected_sources": ["doc-13-sprint-retro"],
+      "ground_truth": "Insufficient data for a real comparison. Connect retro mentions they completed 34 of 48 story points last sprint (71%) but lost ~30% of sprint capacity to flaky tests. No equivalent velocity data exists for Studio in the indexed documents. Should say so explicitly rather than fabricating a comparison.",
+      "tests": "Graceful handling of insufficient data — should not hallucinate Studio metrics"
+    },
+    {
+      "id": "Q20",
+      "query": "What's our competitor Nexus doing?",
+      "level": "edge",
+      "persona": "any",
+      "expected_sources": ["doc-12-competitive-analysis"],
+      "ground_truth": "Nexus raised Series C ($45M) in April. Key moves: launched AI code assistant (competing with GitHub Copilot, not directly with us), expanded into API testing (overlaps with Connect), hired ex-Stripe head of platform as CPO. Main threat: their API testing product is bundled free with their IDE — could undercut Connect's paid marketplace. Our advantage: deeper integration ecosystem and better enterprise auth story (once v3.0 ships).",
+      "tests": "Competitive intel retrieval"
+    }
+  ]
+}
