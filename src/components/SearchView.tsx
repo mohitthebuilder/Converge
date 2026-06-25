@@ -44,7 +44,6 @@ const ALL_TOOLS = [
   { key: 'jira', name: 'Jira', authUrl: null, icon: '/icons/jira.svg', comingSoon: false },
   { key: 'notion', name: 'Notion', authUrl: null, icon: '/icons/notion.svg', comingSoon: true },
   { key: 'figma', name: 'Figma', authUrl: null, icon: '/icons/figma.svg', comingSoon: true },
-  { key: 'linear', name: 'Linear', authUrl: null, icon: '/icons/linear.svg', comingSoon: true },
 ]
 
 const PLACEHOLDERS = [
@@ -120,11 +119,16 @@ export default function SearchView({ user, connections: initialConnections, hist
       })
 
       setSyncStatuses(prev => ({ ...prev, [toolKey]: `Indexing ${toolLabel}...` }))
-      await fetch('/api/pipeline/embed', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connectionId }),
-      })
+      let hasMore = true
+      while (hasMore) {
+        const embedRes = await fetch('/api/pipeline/embed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connectionId }),
+        })
+        const embedResult = await embedRes.json()
+        hasMore = embedResult.remaining && embedResult.remaining !== 0
+      }
 
       setSyncStatuses(prev => ({ ...prev, [toolKey]: 'ready' }))
       setTimeout(() => setSyncStatuses(prev => {
@@ -315,7 +319,7 @@ export default function SearchView({ user, connections: initialConnections, hist
             <DropdownMenu>
               <DropdownMenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full outline-none ring-2 ring-border/30 transition-all duration-150 hover:ring-primary/40">
                 <img
-                  src={`https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=e0e7ff`}
+                  src={`https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
                   alt={user.name || user.email}
                   className="h-full w-full object-cover"
                 />
@@ -446,7 +450,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                   <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-widest text-muted-foreground/40">
                     Your tools
                   </p>
-                  <div className="grid grid-cols-3 gap-2 mx-auto max-w-[360px]">
+                  <div className="mx-auto grid w-fit grid-cols-3 gap-3">
                     {ALL_TOOLS.map(tool => {
                       const status = getToolStatus(tool.key)
                       const isSyncing = status === 'syncing'
@@ -465,42 +469,43 @@ export default function SearchView({ user, connections: initialConnections, hist
                           key={tool.key}
                           href={status === 'disconnected' && tool.authUrl ? tool.authUrl : '#'}
                           onClick={handleToolClick}
-                          className={`relative inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-150 ${
+                          className={`relative flex w-[120px] cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-xs font-medium transition-all duration-150 ${
                             status === 'live'
                               ? 'border-emerald-300 bg-emerald-50/80 text-foreground hover:border-emerald-400 hover:bg-emerald-50'
                               : status === 'syncing'
                               ? 'border-blue-200 bg-blue-50/50 text-foreground'
                               : status === 'unavailable'
-                              ? 'cursor-default border-border/30 bg-muted/20 text-muted-foreground/50'
+                              ? 'cursor-default border-border/40 bg-muted/10 text-muted-foreground/60'
                               : 'border-border/60 bg-background text-foreground hover:border-primary/30 hover:shadow-sm'
                           }`}
                         >
-                          <img src={tool.icon} alt={tool.name} className={`h-4 w-4 ${status === 'unavailable' ? 'opacity-30' : ''}`} />
-                          {tool.name}
+                          <img src={tool.icon} alt={tool.name} className={`h-5 w-5 ${status === 'unavailable' ? 'opacity-40' : ''}`} />
+                          <span className="text-center text-[11px] leading-tight">{tool.name}</span>
 
-                          {/* Status indicator */}
-                          {status === 'live' && !disconnectConfirm && (
-                            <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                            </span>
-                          )}
-                          {status === 'live' && disconnectConfirm === tool.key && (
-                            <span className="text-[9px] font-semibold text-red-500">Disconnect?</span>
-                          )}
-                          {isSyncing && (
-                            <span className="relative flex h-2 w-2">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
-                            </span>
-                          )}
-                          {status === 'disconnected' && (
-                            <span className="relative flex h-2 w-2">
-                              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400/60" />
-                            </span>
-                          )}
+                          {/* Status indicator — fixed position top-right */}
+                          <span className="absolute right-1.5 top-1.5">
+                            {status === 'live' && !disconnectConfirm && (
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                              </span>
+                            )}
+                            {status === 'live' && disconnectConfirm === tool.key && (
+                              <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                            )}
+                            {isSyncing && (
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                              </span>
+                            )}
+                            {status === 'disconnected' && (
+                              <span className="inline-flex h-2 w-2 rounded-full bg-red-400/60" />
+                            )}
+                          </span>
+
                           {status === 'unavailable' && (
-                            <span className="text-[9px] text-muted-foreground/40">Coming Soon</span>
+                            <span className="text-[9px] text-muted-foreground/50">Coming Soon</span>
                           )}
                         </a>
                       )
@@ -560,7 +565,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                     <span className={`inline-block h-1.5 w-1.5 rounded-full ${
                       confidence.level === 'high' ? 'bg-emerald-500' : confidence.level === 'medium' ? 'bg-green-500' : 'bg-amber-500'
                     }`} />
-                    {confidence.level === 'high' ? 'Excellent' : confidence.level === 'medium' ? 'Good' : 'Average'}
+                    Confidence: {confidence.level === 'high' ? 'High' : confidence.level === 'medium' ? 'Good' : 'Average'}
                   </div>
                 )}
 

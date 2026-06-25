@@ -3,7 +3,7 @@ import OpenAI from 'openai'
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const BATCH_SIZE = 100
-const MAX_CHARS = 20000
+const MAX_CHARS = 15000
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
   const allEmbeddings: number[][] = []

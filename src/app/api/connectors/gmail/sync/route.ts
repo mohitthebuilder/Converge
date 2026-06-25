@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
   do {
     const params = new URLSearchParams({
-      q: 'newer_than:90d -in:spam -in:trash -in:drafts',
+      q: 'newer_than:90d -in:spam -in:trash -in:drafts -category:social -category:updates -category:promotions',
       maxResults: '100',
     })
     if (pageToken) params.set('pageToken', pageToken)

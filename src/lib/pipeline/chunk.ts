@@ -1,7 +1,8 @@
 const TARGET_TOKENS = 500
 const MAX_CHUNK_TOKENS = 1500
 const OVERLAP_TOKENS = 75
-const CHARS_PER_TOKEN = 4
+const CHARS_PER_TOKEN = 3
+const MAX_CHUNK_CHARS = 4500
 
 interface Chunk {
   content: string
@@ -44,7 +45,7 @@ function splitAtSentenceBoundaries(text: string): string[] {
 
   for (const sentence of sentences) {
     const combined = current + sentence
-    if (estimateTokens(combined) > MAX_CHUNK_TOKENS && current) {
+    if ((estimateTokens(combined) > MAX_CHUNK_TOKENS || combined.length > MAX_CHUNK_CHARS) && current) {
       parts.push(current)
       current = sentence
     } else {

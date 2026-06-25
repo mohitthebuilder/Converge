@@ -24,7 +24,12 @@ export default function AnswerView({ answer, isStreaming, query }: AnswerViewPro
 
   if (!answer) return null
 
-  const formatted = answer
+  const cleaned = answer
+    .replace(/\n*-{2,}\n*Sources?:[\s\S]*$/i, '')
+    .replace(/\n*Sources?:\s*\n[\s\S]*$/i, '')
+    .trim()
+
+  const formatted = cleaned
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\[(\d+)\]/g, '')
     .replace(/\n\n/g, '</p><p class="mt-3">')

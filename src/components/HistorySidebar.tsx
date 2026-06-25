@@ -45,11 +45,11 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
           {history.length === 0 ? (
             <p className="p-4 text-center text-sm text-gray-500">No queries yet</p>
           ) : (
-            <div className="space-y-0.5">
+            <div className="divide-y divide-gray-200/70">
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className={`group relative flex items-start rounded-md transition-colors hover:bg-white ${deletingId === item.id ? 'opacity-40' : ''}`}
+                  className={`group relative flex items-start transition-colors hover:bg-white ${deletingId === item.id ? 'opacity-40' : ''}`}
                 >
                   <button
                     onClick={() => onSelectQuery(item.id)}

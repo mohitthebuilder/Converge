@@ -3,11 +3,11 @@ import { supabaseServer } from '@/lib/db/supabase-server'
 import { embedTexts } from '@/lib/pipeline/embed'
 
 const BATCH_SIZE = 20
+const PAGE_LIMIT = 200
 
 export async function POST(request: NextRequest) {
   const { connectionId } = await request.json()
 
-  // Get document IDs for this connection
   const { data: docs } = await supabaseServer
     .from('document')
     .select('id')
@@ -19,7 +19,6 @@ export async function POST(request: NextRequest) {
 
   const docIds = docs.map(d => d.id)
 
-  // Get chunks without embeddings — batch docId lookups to avoid URL length limits
   const ID_BATCH = 100
   const chunks: { id: string; content: string }[] = []
   for (let i = 0; i < docIds.length; i += ID_BATCH) {
@@ -29,27 +28,29 @@ export async function POST(request: NextRequest) {
       .select('id, content')
       .in('document_id', batch)
       .is('embedding', null)
+      .limit(PAGE_LIMIT)
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     if (data) chunks.push(...data)
+    if (chunks.length >= PAGE_LIMIT) break
   }
 
-  if (chunks.length === 0) {
-    return NextResponse.json({ embedded: 0, message: 'All chunks already have embeddings' })
+  const page = chunks.slice(0, PAGE_LIMIT)
+
+  if (page.length === 0) {
+    return NextResponse.json({ embedded: 0, total: 0, remaining: 0 })
   }
 
   let embedded = 0
 
-  // Process in batches
-  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
-    const batch = chunks.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < page.length; i += BATCH_SIZE) {
+    const batch = page.slice(i, i + BATCH_SIZE)
     const texts = batch.map(c => c.content)
 
     try {
       const embeddings = await embedTexts(texts)
 
-      // Rate limit: wait between batches to stay under 40K tokens/min
       if (i > 0) await new Promise(r => setTimeout(r, 2000))
 
       for (let j = 0; j < batch.length; j++) {
@@ -62,9 +63,25 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      console.error(`Embed batch ${Math.floor(i / BATCH_SIZE)} failed: ${message}`)
+      if (message.includes('maximum input length')) {
+        for (const chunk of batch) {
+          try {
+            const [embedding] = await embedTexts([chunk.content])
+            const { error: updateError } = await supabaseServer
+              .from('chunk')
+              .update({ embedding: JSON.stringify(embedding) })
+              .eq('id', chunk.id)
+            if (!updateError) embedded++
+          } catch {
+            console.error(`Chunk ${chunk.id} too large to embed, skipping`)
+          }
+        }
+      } else {
+        console.error(`Embed batch ${Math.floor(i / BATCH_SIZE)} failed: ${message}`)
+      }
     }
   }
 
-  return NextResponse.json({ embedded, total: chunks.length })
+  const hasMore = chunks.length >= PAGE_LIMIT
+  return NextResponse.json({ embedded, total: page.length, remaining: hasMore ? '200+' : 0 })
 }
