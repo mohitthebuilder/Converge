@@ -24,8 +24,9 @@ interface Source {
 
 interface SearchViewProps {
   user: { id: string; email: string; name: string; avatar_url?: string }
-  connections: { source_type: string; status: string; last_synced_at: string | null }[]
+  connections: { id: string; source_type: string; status: string; last_synced_at: string | null }[]
   history: { id: string; original_query: string; created_at: string }[]
+  autoSync?: string | null
 }
 
 const ALL_TOOLS = [
@@ -44,7 +45,17 @@ const PLACEHOLDERS = [
   'What did the team decide about the API redesign?',
 ]
 
-export default function SearchView({ user, connections, history }: SearchViewProps) {
+const SYNC_ENDPOINTS: Record<string, string> = {
+  gmail: '/api/connectors/gmail/sync',
+  google_drive: '/api/connectors/google-drive/sync',
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  gmail: 'Gmail',
+  google_drive: 'Google Drive',
+}
+
+export default function SearchView({ user, connections, history, autoSync }: SearchViewProps) {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [answer, setAnswer] = useState('')
@@ -55,11 +66,60 @@ export default function SearchView({ user, connections, history }: SearchViewPro
   const [answerId, setAnswerId] = useState<string | null>(null)
   const [confidence, setConfidence] = useState<{ level: string; message: string } | null>(null)
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
+  const [syncStatus, setSyncStatus] = useState<{ tool: string; phase: string } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setPlaceholderIndex(Math.floor(Math.random() * PLACEHOLDERS.length))
   }, [])
+
+  useEffect(() => {
+    if (!autoSync) return
+    const syncEndpoint = SYNC_ENDPOINTS[autoSync]
+    if (!syncEndpoint) return
+
+    const conn = connections.find(c => c.source_type === autoSync)
+    if (!conn) return
+
+    const toolLabel = TOOL_LABELS[autoSync] || autoSync
+
+    async function runSync() {
+      try {
+        setSyncStatus({ tool: toolLabel, phase: 'Syncing' })
+        const syncRes = await fetch(syncEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connectionId: conn!.id }),
+        })
+        if (!syncRes.ok) {
+          setSyncStatus({ tool: toolLabel, phase: 'Sync failed' })
+          return
+        }
+
+        setSyncStatus({ tool: toolLabel, phase: 'Processing' })
+        await fetch('/api/pipeline/chunk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connectionId: conn!.id }),
+        })
+
+        setSyncStatus({ tool: toolLabel, phase: 'Indexing' })
+        await fetch('/api/pipeline/embed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connectionId: conn!.id }),
+        })
+
+        setSyncStatus({ tool: toolLabel, phase: 'Ready' })
+        setTimeout(() => setSyncStatus(null), 5000)
+      } catch {
+        setSyncStatus({ tool: toolLabel, phase: 'Sync failed' })
+      }
+    }
+
+    runSync()
+    window.history.replaceState({}, '', '/')
+  }, [autoSync, connections])
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -86,6 +146,7 @@ export default function SearchView({ user, connections, history }: SearchViewPro
 
       const decoder = new TextDecoder()
       let buffer = ''
+      let fullAnswer = ''
 
       while (true) {
         const { done, value } = await reader.read()
@@ -104,9 +165,16 @@ export default function SearchView({ user, connections, history }: SearchViewPro
           } else if (data.type === 'confidence') {
             setConfidence({ level: data.level, message: data.message })
           } else if (data.type === 'text') {
+            fullAnswer += data.content
             setAnswer((prev) => prev + data.content)
           } else if (data.type === 'done') {
             setLatencyMs(data.latencyMs)
+            const lower = fullAnswer.toLowerCase()
+            const notFound = ['cannot find', 'no relevant', 'no information', 'not listed', 'do not contain', 'no data about', 'no data available', 'not mentioned', 'does not contain', 'no specific information'].some(p => lower.includes(p))
+            if (notFound) {
+              setSources([])
+              setConfidence(null)
+            }
           }
         }
       }
@@ -202,6 +270,27 @@ export default function SearchView({ user, connections, history }: SearchViewPro
             </DropdownMenu>
           </div>
         </header>
+
+        {/* Sync banner */}
+        {syncStatus && (
+          <div className={`flex items-center justify-center gap-2 px-4 py-2 text-sm ${
+            syncStatus.phase === 'Sync failed' ? 'bg-red-50 text-red-700' :
+            syncStatus.phase === 'Ready' ? 'bg-emerald-50 text-emerald-700' :
+            'bg-primary/5 text-primary'
+          }`}>
+            {syncStatus.phase !== 'Ready' && syncStatus.phase !== 'Sync failed' && (
+              <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
+            {syncStatus.phase === 'Ready'
+              ? `${syncStatus.tool} synced — ready to search!`
+              : syncStatus.phase === 'Sync failed'
+              ? `${syncStatus.tool} sync failed — try reconnecting.`
+              : `${syncStatus.phase} ${syncStatus.tool}... You can search once this completes.`}
+          </div>
+        )}
 
         {/* Main content */}
         <main className={`flex flex-1 flex-col items-center ${hasAnswer ? 'pt-0' : 'justify-center'} overflow-y-auto`}>

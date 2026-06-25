@@ -115,7 +115,6 @@ export async function POST(request: NextRequest) {
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources: [] })}\n\n`))
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: 'low', message: 'No relevant sources found' })}\n\n`))
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', content: 'No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.' })}\n\n`))
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', latencyMs: 0 })}\n\n`))
         controller.close()

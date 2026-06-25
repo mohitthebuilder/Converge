@@ -47,5 +47,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to store connection' }, { status: 500 })
   }
 
-  return NextResponse.redirect(new URL('/', request.url))
+  return NextResponse.redirect(new URL('/?sync=google_drive', request.url))
 }

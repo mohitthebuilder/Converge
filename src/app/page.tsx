@@ -3,16 +3,18 @@ import { supabaseServer } from '@/lib/db/supabase-server'
 import { redirect } from 'next/navigation'
 import SearchView from '@/components/SearchView'
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ sync?: string }> }) {
   const user = await getSessionUser()
 
   if (!user) {
     redirect('/login')
   }
 
+  const params = await searchParams
+
   const { data: connections } = await supabaseServer
     .from('connection')
-    .select('source_type, status, last_synced_at')
+    .select('id, source_type, status, last_synced_at')
     .eq('user_id', user.id)
     .eq('status', 'active')
 
@@ -28,6 +30,7 @@ export default async function Home() {
       user={user}
       connections={connections || []}
       history={recentQueries || []}
+      autoSync={params.sync || null}
     />
   )
 }
