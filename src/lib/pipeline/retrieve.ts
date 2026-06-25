@@ -48,7 +48,7 @@ function rrfMerge(
 export async function retrieve(
   query: string,
   threshold = 0.3,
-  topK = 8
+  topK = 5
 ): Promise<RetrievedChunk[]> {
   const queryEmbedding = await embedQuery(query)
 

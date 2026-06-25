@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu'
 import HistorySidebar from './HistorySidebar'
 import AnswerView from './AnswerView'
@@ -37,12 +38,13 @@ interface SearchViewProps {
 }
 
 const ALL_TOOLS = [
-  { key: 'google_drive', name: 'Google Drive', authUrl: '/api/auth/google-drive', icon: '/icons/googledrive.svg' },
-  { key: 'slack', name: 'Slack', authUrl: null, icon: '/icons/slack.svg' },
-  { key: 'notion', name: 'Notion', authUrl: null, icon: '/icons/notion.svg' },
-  { key: 'jira', name: 'Jira', authUrl: null, icon: '/icons/jira.svg' },
-  { key: 'gmail', name: 'Gmail', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg' },
-  { key: 'figma', name: 'Figma', authUrl: null, icon: '/icons/figma.svg' },
+  { key: 'google_drive', name: 'Google Drive', authUrl: '/api/auth/google-drive', icon: '/icons/googledrive.svg', comingSoon: false },
+  { key: 'gmail', name: 'Gmail', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg', comingSoon: false },
+  { key: 'slack', name: 'Slack', authUrl: null, icon: '/icons/slack.svg', comingSoon: false },
+  { key: 'jira', name: 'Jira', authUrl: null, icon: '/icons/jira.svg', comingSoon: false },
+  { key: 'notion', name: 'Notion', authUrl: null, icon: '/icons/notion.svg', comingSoon: true },
+  { key: 'figma', name: 'Figma', authUrl: null, icon: '/icons/figma.svg', comingSoon: true },
+  { key: 'linear', name: 'Linear', authUrl: null, icon: '/icons/linear.svg', comingSoon: true },
 ]
 
 const PLACEHOLDERS = [
@@ -185,12 +187,6 @@ export default function SearchView({ user, connections: initialConnections, hist
           } else if (data.type === 'done') {
             setLatencyMs(Date.now() - searchStartRef.current)
             if (data.answerId) setAnswerId(data.answerId)
-            const lower = fullAnswer.toLowerCase()
-            const notFound = ['cannot find', 'no relevant', 'no information', 'not listed', 'do not contain', 'no data about', 'no data available', 'not mentioned', 'does not contain', 'no specific information', 'contain no', 'none of them', 'no emails', 'no messages', 'not found', 'no evidence', 'no records'].some(p => lower.includes(p))
-            if (notFound) {
-              setSources([])
-              setConfidence(null)
-            }
           }
         }
       }
@@ -282,7 +278,7 @@ export default function SearchView({ user, connections: initialConnections, hist
   const activeSyncs = Object.entries(syncStatuses).filter(([, v]) => v !== 'ready' && !v.includes('failed'))
 
   return (
-    <div className="flex h-full bg-background">
+    <div className="flex h-full bg-gradient-to-b from-indigo-50/30 to-white">
       <HistorySidebar
         history={localHistory}
         show={showSidebar}
@@ -319,7 +315,7 @@ export default function SearchView({ user, connections: initialConnections, hist
             <DropdownMenu>
               <DropdownMenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full outline-none ring-2 ring-border/30 transition-all duration-150 hover:ring-primary/40">
                 <img
-                  src={user.avatar_url || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=e0e7ff`}
+                  src={`https://api.dicebear.com/9.x/bottts/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=e0e7ff`}
                   alt={user.name || user.email}
                   className="h-full w-full object-cover"
                 />
@@ -330,50 +326,52 @@ export default function SearchView({ user, connections: initialConnections, hist
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Connected tools</DropdownMenuLabel>
-                {localConnections.length === 0 && (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">No tools connected</p>
-                )}
-                {localConnections.map((c) => {
-                  const tool = ALL_TOOLS.find(t => t.key === c.source_type)
-                  const status = getToolStatus(c.source_type)
-                  return (
-                    <div key={c.source_type} className="flex items-center justify-between px-2 py-1.5">
-                      <div className="flex items-center gap-2">
-                        {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
-                        <span className="text-sm">{tool?.name || c.source_type}</span>
-                        {status === 'live' && (
-                          <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Connected tools</DropdownMenuLabel>
+                  {localConnections.length === 0 && (
+                    <p className="px-2 py-1 text-xs text-muted-foreground">No tools connected</p>
+                  )}
+                  {localConnections.map((c) => {
+                    const tool = ALL_TOOLS.find(t => t.key === c.source_type)
+                    const status = getToolStatus(c.source_type)
+                    return (
+                      <div key={c.source_type} className="flex items-center justify-between px-2 py-1.5">
+                        <div className="flex items-center gap-2">
+                          {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
+                          <span className="text-sm">{tool?.name || c.source_type}</span>
+                          {status === 'live' && (
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
+                              <span className="relative flex h-1.5 w-1.5">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              </span>
+                              Live
                             </span>
-                            Live
-                          </span>
-                        )}
-                        {status === 'syncing' && (
-                          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">
-                            <svg className="h-2.5 w-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                            Syncing
-                          </span>
-                        )}
+                          )}
+                          {status === 'syncing' && (
+                            <span className="flex items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">
+                              <svg className="h-2.5 w-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              Syncing
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleDisconnect(c.source_type)}
+                          className={`cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+                            disconnectConfirm === c.source_type
+                              ? 'bg-red-100 font-medium text-red-600'
+                              : 'text-muted-foreground hover:bg-red-50 hover:text-red-500'
+                          }`}
+                        >
+                          {disconnectConfirm === c.source_type ? 'Confirm?' : 'Disconnect'}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => handleDisconnect(c.source_type)}
-                        className={`cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors ${
-                          disconnectConfirm === c.source_type
-                            ? 'bg-red-100 font-medium text-red-600'
-                            : 'text-muted-foreground hover:bg-red-50 hover:text-red-500'
-                        }`}
-                      >
-                        {disconnectConfirm === c.source_type ? 'Confirm?' : 'Disconnect'}
-                      </button>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="cursor-pointer" onSelect={() => { window.location.href = '/settings' }}>
                   Settings
@@ -502,7 +500,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                             </span>
                           )}
                           {status === 'unavailable' && (
-                            <span className="text-[9px] text-muted-foreground/40">Soon</span>
+                            <span className="text-[9px] text-muted-foreground/40">Coming Soon</span>
                           )}
                         </a>
                       )
@@ -516,7 +514,7 @@ export default function SearchView({ user, connections: initialConnections, hist
             {hasAnswer && (
               <>
                 {/* Compact search bar */}
-                <form onSubmit={handleSearch} className="sticky top-0 z-10 bg-background/95 pb-3 pt-4 backdrop-blur-sm">
+                <form onSubmit={handleSearch} className="sticky top-0 z-10 pb-3 pt-4 backdrop-blur-sm">
                   <div className="relative">
                     <input
                       ref={inputRef}
@@ -550,17 +548,19 @@ export default function SearchView({ user, connections: initialConnections, hist
                   <h2 className="mt-1 text-xl font-medium tracking-tight text-foreground">{currentQuery}</h2>
                 )}
 
-                {/* Confidence tag — only shown for medium/low */}
-                {confidence && confidence.level !== 'high' && !isSearching && (
+                {/* Confidence tag */}
+                {confidence && !isSearching && (
                   <div className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                    confidence.level === 'medium'
-                      ? 'border border-amber-200 bg-amber-50 text-amber-700'
-                      : 'border border-red-200 bg-red-50 text-red-700'
+                    confidence.level === 'high'
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : confidence.level === 'medium'
+                      ? 'border border-green-200 bg-green-50 text-green-700'
+                      : 'border border-amber-200 bg-amber-50 text-amber-700'
                   }`}>
-                    <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                    {confidence.level === 'medium' ? 'Moderate confidence' : 'Limited sources found'}
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      confidence.level === 'high' ? 'bg-emerald-500' : confidence.level === 'medium' ? 'bg-green-500' : 'bg-amber-500'
+                    }`} />
+                    {confidence.level === 'high' ? 'Excellent' : confidence.level === 'medium' ? 'Good' : 'Average'}
                   </div>
                 )}
 
@@ -568,38 +568,44 @@ export default function SearchView({ user, connections: initialConnections, hist
                 <AnswerView answer={answer} isStreaming={isSearching} query={currentQuery} />
 
                 {/* Sources */}
-                {!isSearching && sources.length > 0 && (
-                  <div className="mt-3 border-t border-border/30 pt-5">
-                    <p className="mb-3 text-[11px] font-medium uppercase tracking-widest text-muted-foreground/50">
-                      {sources.length} {sources.length === 1 ? 'source' : 'sources'}
-                    </p>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {sources.map((s) => {
-                        const icon = getToolIcon(s.tool)
-                        return (
-                          <a
-                            key={s.index}
-                            href={s.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex items-start gap-3 rounded-xl border border-border/40 bg-muted/20 p-3 transition-all duration-150 hover:border-border/80 hover:bg-muted/40 hover:shadow-sm"
-                          >
-                            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[11px] font-semibold text-primary">
-                              {s.index}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[13px] font-medium text-foreground/90 transition-colors duration-150 group-hover:text-primary">{s.title}</p>
-                              <div className="mt-0.5 flex items-center gap-1.5">
-                                {icon && <span className="shrink-0 opacity-60">{icon}</span>}
-                                <p className="text-[11px] text-muted-foreground/60">{s.tool}</p>
+                {!isSearching && sources.length > 0 && (() => {
+                  const ranked = sources
+                    .filter(s => s.similarity >= 0.3)
+                    .sort((a, b) => b.similarity - a.similarity)
+                    .slice(0, 6)
+                  if (ranked.length === 0) return null
+                  return (
+                    <div className="mt-3 border-t border-border/30 pt-5">
+                      <p className="mb-3 text-[11px] font-medium uppercase tracking-widest text-muted-foreground/50">
+                        {ranked.length} {ranked.length === 1 ? 'source' : 'sources'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {ranked.map((s, i) => {
+                          const icon = getToolIcon(s.tool)
+                          return (
+                            <a
+                              key={i}
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="group flex items-start gap-3 rounded-xl border border-border/40 bg-muted/20 p-3 transition-all duration-150 hover:border-border/80 hover:bg-muted/40 hover:shadow-sm"
+                            >
+                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                                {icon || <span className="text-[11px] font-semibold text-primary">?</span>}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[13px] font-medium text-foreground/90 transition-colors duration-150 group-hover:text-primary">{s.title}</p>
+                                <div className="mt-0.5 flex items-center gap-1.5">
+                                  <p className="text-[11px] text-muted-foreground/60">{s.tool}</p>
+                                </div>
                               </div>
-                            </div>
-                          </a>
-                        )
-                      })}
+                            </a>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
 
                 {/* Footer */}
                 {!isSearching && answer && (

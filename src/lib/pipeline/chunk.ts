@@ -1,4 +1,5 @@
 const TARGET_TOKENS = 500
+const MAX_CHUNK_TOKENS = 1500
 const OVERLAP_TOKENS = 75
 const CHARS_PER_TOKEN = 4
 
@@ -11,27 +12,61 @@ interface Chunk {
 export function chunkDocument(text: string, docType: string): Chunk[] {
   if (!text || text.trim().length === 0) return []
 
-  // Slides: each slide is a natural chunk
   if (docType === 'application/vnd.google-apps.presentation') {
     return chunkBySlides(text)
   }
 
-  // Everything else: paragraph-aware chunking
   return chunkByParagraphs(text)
 }
 
 function chunkBySlides(text: string): Chunk[] {
   const slides = text.split(/\n{2,}/).filter(s => s.trim().length > 0)
+  const chunks: Chunk[] = []
+  let idx = 0
 
-  return slides.map((slide, i) => ({
-    content: slide.trim(),
-    chunkIndex: i,
-    tokenCount: estimateTokens(slide),
-  }))
+  for (const slide of slides) {
+    if (estimateTokens(slide) > MAX_CHUNK_TOKENS) {
+      for (const sub of splitAtSentenceBoundaries(slide)) {
+        chunks.push({ content: sub.trim(), chunkIndex: idx++, tokenCount: estimateTokens(sub) })
+      }
+    } else {
+      chunks.push({ content: slide.trim(), chunkIndex: idx++, tokenCount: estimateTokens(slide) })
+    }
+  }
+
+  return chunks
+}
+
+function splitAtSentenceBoundaries(text: string): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+[\s]*/g) || [text]
+  const parts: string[] = []
+  let current = ''
+
+  for (const sentence of sentences) {
+    const combined = current + sentence
+    if (estimateTokens(combined) > MAX_CHUNK_TOKENS && current) {
+      parts.push(current)
+      current = sentence
+    } else {
+      current = combined
+    }
+  }
+  if (current.trim()) parts.push(current)
+  return parts
 }
 
 function chunkByParagraphs(text: string): Chunk[] {
-  const paragraphs = text.split(/\n{2,}/).filter(p => p.trim().length > 0)
+  const rawParagraphs = text.split(/\n{2,}/).filter(p => p.trim().length > 0)
+
+  const paragraphs: string[] = []
+  for (const p of rawParagraphs) {
+    if (estimateTokens(p) > MAX_CHUNK_TOKENS) {
+      paragraphs.push(...splitAtSentenceBoundaries(p))
+    } else {
+      paragraphs.push(p)
+    }
+  }
+
   const chunks: Chunk[] = []
   let current = ''
   let chunkIndex = 0
@@ -47,7 +82,6 @@ function chunkByParagraphs(text: string): Chunk[] {
         tokenCount: estimateTokens(current),
       })
 
-      // Start new chunk with overlap from end of previous
       const overlapText = getOverlapText(current)
       current = overlapText ? `${overlapText}\n\n${paragraph}` : paragraph
     } else {
@@ -55,7 +89,6 @@ function chunkByParagraphs(text: string): Chunk[] {
     }
   }
 
-  // Don't forget the last chunk
   if (current.trim()) {
     chunks.push({
       content: current.trim(),

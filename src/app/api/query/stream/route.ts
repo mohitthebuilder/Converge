@@ -8,17 +8,19 @@ import { getSession } from '@/lib/auth/session'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You are Converge, a knowledge assistant for Product Managers. Answer the PM's question using ONLY the provided context chunks.
+const SYSTEM_PROMPT = `You are Converge, a knowledge assistant for Product Managers. Answer the PM's question using ONLY the provided documents.
 
 Rules:
-1. Only use information from the provided chunks. Never fabricate information.
-2. Cite every claim inline using numbered references like [1], [2], etc. The number corresponds to the source number.
-3. If chunks contain conflicting information, present both views with their citations.
-4. If the chunks don't contain the specific data needed to answer the question, say so explicitly. Do not use indirect evidence (team size, confidence levels, general context) as a substitute for the specific data requested. State what data is missing.
+1. Only use information from the provided documents. Never fabricate information.
+2. Do NOT include inline citation numbers like [1], [2] in your answer. Sources are shown separately below your answer.
+3. If documents contain conflicting information, present both views.
+4. If your documents don't contain the specific data needed, say so explicitly. Do not use indirect evidence as a substitute. State what data is missing.
 5. Structure your answer for a PM audience: lead with the decision/answer, then supporting details.
-6. Match answer depth to query complexity. For simple factual lookups (a date, a name, a number), lead with a one-sentence answer. For complex questions, be thorough.
-7. Do NOT wrap your response in JSON or any other format. Just write the answer directly.
-8. Do not use emojis. Use plain text formatting only.`
+6. Match answer depth to query complexity. For simple factual lookups, lead with a one-sentence answer. For complex questions, be thorough.
+7. Always use bullet points (•) for lists, never dashes (-). Keep formatting consistent.
+8. Do NOT wrap your response in JSON or any other format. Write the answer directly.
+9. Do not use emojis. Use plain text formatting only.
+10. Never use technical terms like "chunks", "context", "documents provided", or "data sources". Speak naturally as if you know this information from the user's connected tools.`
 
 const MAX_RETRIES = 2
 
@@ -142,14 +144,16 @@ export async function POST(request: NextRequest) {
   ;(async () => {
     try {
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources })}\n\n`))
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: validation.confidence, message: validation.message })}\n\n`))
+      if (validation.confidence !== 'very_low') {
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: validation.confidence, message: validation.message })}\n\n`))
+      }
 
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
 
       const stream = anthropic.messages.stream({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
+        max_tokens: 1000,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: `Context chunks:\n\n${contextBlock}\n\nQuestion: ${query}` }],
       })

@@ -9,7 +9,7 @@ interface AnswerViewProps {
 export default function AnswerView({ answer, isStreaming, query }: AnswerViewProps) {
   if (!answer && isStreaming) {
     return (
-      <div className="py-8">
+      <div className="mt-4 rounded-xl border border-border/40 bg-white p-6 shadow-sm">
         <p className="text-sm text-muted-foreground">
           Searching your tools for: <span className="font-medium text-foreground">{query}</span>
         </p>
@@ -26,16 +26,14 @@ export default function AnswerView({ answer, isStreaming, query }: AnswerViewPro
 
   const formatted = answer
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n\n/g, '</p><p class="mt-4">')
-    .replace(/\n- /g, '</p><li class="ml-5 mt-1.5 list-disc text-[15px]">')
+    .replace(/\[(\d+)\]/g, '')
+    .replace(/\n\n/g, '</p><p class="mt-3">')
+    .replace(/\n• /g, '</p><li class="ml-5 mt-1.5 list-disc text-[15px] leading-relaxed">')
+    .replace(/\n- /g, '</p><li class="ml-5 mt-1.5 list-disc text-[15px] leading-relaxed">')
     .replace(/\n/g, '<br/>')
-    .replace(
-      /\[(\d+)\]/g,
-      '<sup class="inline-flex items-center justify-center ml-0.5 cursor-default"><span class="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-md bg-primary/10 px-1 text-[10px] font-semibold text-primary transition-colors hover:bg-primary/20">$1</span></sup>'
-    )
 
   return (
-    <div className="py-6">
+    <div className="mt-4 rounded-xl border border-border/40 bg-white p-6 shadow-sm">
       <div
         className="text-[15px] leading-[1.85] text-foreground/90 [&_li]:text-foreground/90 [&_strong]:font-semibold [&_strong]:text-foreground"
         dangerouslySetInnerHTML={{ __html: `<p>${formatted}</p>` }}
