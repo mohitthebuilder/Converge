@@ -22,9 +22,16 @@ interface Source {
   similarity: number
 }
 
+interface Connection {
+  id: string
+  source_type: string
+  status: string
+  last_synced_at: string | null
+}
+
 interface SearchViewProps {
   user: { id: string; email: string; name: string; avatar_url?: string }
-  connections: { id: string; source_type: string; status: string; last_synced_at: string | null }[]
+  connections: Connection[]
   history: { id: string; original_query: string; created_at: string }[]
   autoSync?: string | null
 }
@@ -55,7 +62,7 @@ const TOOL_LABELS: Record<string, string> = {
   google_drive: 'Google Drive',
 }
 
-export default function SearchView({ user, connections, history, autoSync }: SearchViewProps) {
+export default function SearchView({ user, connections: initialConnections, history: initialHistory, autoSync }: SearchViewProps) {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [answer, setAnswer] = useState('')
@@ -66,8 +73,12 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
   const [answerId, setAnswerId] = useState<string | null>(null)
   const [confidence, setConfidence] = useState<{ level: string; message: string } | null>(null)
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
-  const [syncStatus, setSyncStatus] = useState<{ tool: string; phase: string } | null>(null)
+  const [syncStatuses, setSyncStatuses] = useState<Record<string, string>>({})
+  const [localConnections, setLocalConnections] = useState<Connection[]>(initialConnections)
+  const [localHistory, setLocalHistory] = useState(initialHistory)
+  const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const searchStartRef = useRef<number>(0)
 
   useEffect(() => {
     setPlaceholderIndex(Math.floor(Math.random() * PLACEHOLDERS.length))
@@ -78,53 +89,57 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
     const syncEndpoint = SYNC_ENDPOINTS[autoSync]
     if (!syncEndpoint) return
 
-    const conn = connections.find(c => c.source_type === autoSync)
+    const conn = localConnections.find(c => c.source_type === autoSync)
     if (!conn) return
 
-    const toolLabel = TOOL_LABELS[autoSync] || autoSync
-
-    async function runSync() {
-      try {
-        setSyncStatus({ tool: toolLabel, phase: 'Syncing' })
-        const syncRes = await fetch(syncEndpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connectionId: conn!.id }),
-        })
-        if (!syncRes.ok) {
-          setSyncStatus({ tool: toolLabel, phase: 'Sync failed' })
-          return
-        }
-
-        setSyncStatus({ tool: toolLabel, phase: 'Processing' })
-        await fetch('/api/pipeline/chunk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connectionId: conn!.id }),
-        })
-
-        setSyncStatus({ tool: toolLabel, phase: 'Indexing' })
-        await fetch('/api/pipeline/embed', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connectionId: conn!.id }),
-        })
-
-        setSyncStatus({ tool: toolLabel, phase: 'Ready' })
-        setTimeout(() => setSyncStatus(null), 5000)
-      } catch {
-        setSyncStatus({ tool: toolLabel, phase: 'Sync failed' })
-      }
-    }
-
-    runSync()
+    runToolSync(autoSync, conn.id, syncEndpoint)
     window.history.replaceState({}, '', '/')
-  }, [autoSync, connections])
+  }, [autoSync])
+
+  async function runToolSync(toolKey: string, connectionId: string, syncEndpoint: string) {
+    const toolLabel = TOOL_LABELS[toolKey] || toolKey
+    try {
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: `Syncing ${toolLabel}...` }))
+      const syncRes = await fetch(syncEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId }),
+      })
+      if (!syncRes.ok) {
+        setSyncStatuses(prev => ({ ...prev, [toolKey]: `${toolLabel} sync failed` }))
+        return
+      }
+
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: `Processing ${toolLabel}...` }))
+      await fetch('/api/pipeline/chunk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId }),
+      })
+
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: `Indexing ${toolLabel}...` }))
+      await fetch('/api/pipeline/embed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ connectionId }),
+      })
+
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'ready' }))
+      setTimeout(() => setSyncStatuses(prev => {
+        const next = { ...prev }
+        delete next[toolKey]
+        return next
+      }), 5000)
+    } catch {
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: `${TOOL_LABELS[toolKey] || toolKey} sync failed` }))
+    }
+  }
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     if (!query.trim() || isSearching) return
 
+    searchStartRef.current = Date.now()
     setIsSearching(true)
     setAnswer('')
     setSources([])
@@ -168,9 +183,10 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
             fullAnswer += data.content
             setAnswer((prev) => prev + data.content)
           } else if (data.type === 'done') {
-            setLatencyMs(data.latencyMs)
+            setLatencyMs(Date.now() - searchStartRef.current)
+            if (data.answerId) setAnswerId(data.answerId)
             const lower = fullAnswer.toLowerCase()
-            const notFound = ['cannot find', 'no relevant', 'no information', 'not listed', 'do not contain', 'no data about', 'no data available', 'not mentioned', 'does not contain', 'no specific information'].some(p => lower.includes(p))
+            const notFound = ['cannot find', 'no relevant', 'no information', 'not listed', 'do not contain', 'no data about', 'no data available', 'not mentioned', 'does not contain', 'no specific information', 'contain no', 'none of them', 'no emails', 'no messages', 'not found', 'no evidence', 'no records'].some(p => lower.includes(p))
             if (notFound) {
               setSources([])
               setConfidence(null)
@@ -178,7 +194,7 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
           }
         }
       }
-    } catch (err) {
+    } catch {
       setAnswer('Something went wrong. Please try again.')
     } finally {
       setIsSearching(false)
@@ -196,25 +212,83 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
     inputRef.current?.focus()
   }
 
+  async function handleSelectQuery(queryId: string) {
+    try {
+      const res = await fetch(`/api/query/history?id=${queryId}`)
+      if (!res.ok) return
+      const data = await res.json()
+      setCurrentQuery(data.query)
+      setAnswer(data.answer)
+      setSources(data.sources || [])
+      setLatencyMs(data.latencyMs)
+      setAnswerId(data.answerId)
+      setConfidence(null)
+      setQuery('')
+      setShowSidebar(false)
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDeleteQuery(queryId: string) {
+    try {
+      await fetch(`/api/query/history?id=${queryId}`, { method: 'DELETE' })
+      setLocalHistory(prev => prev.filter(h => h.id !== queryId))
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDisconnect(sourceType: string) {
+    if (disconnectConfirm !== sourceType) {
+      setDisconnectConfirm(sourceType)
+      setTimeout(() => setDisconnectConfirm(prev => prev === sourceType ? null : prev), 4000)
+      return
+    }
+    setDisconnectConfirm(null)
+    await fetch('/api/connectors/disconnect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sourceType }),
+    })
+    setLocalConnections(prev => prev.filter(c => c.source_type !== sourceType))
+  }
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     window.location.reload()
   }
 
   const hasAnswer = answer.length > 0 || isSearching
-  const connectedKeys = new Set(connections.filter(c => c.status === 'active').map(c => c.source_type))
+  const connectedKeys = new Set(localConnections.filter(c => c.status === 'active').map(c => c.source_type))
 
   function getToolIcon(toolName: string) {
     const tool = ALL_TOOLS.find(t => t.name === toolName)
     return tool ? <img src={tool.icon} alt={tool.name} className="h-4 w-4" /> : null
   }
 
+  function getToolStatus(toolKey: string): 'live' | 'syncing' | 'disconnected' | 'unavailable' {
+    if (syncStatuses[toolKey]) {
+      if (syncStatuses[toolKey] === 'ready') return 'live'
+      if (syncStatuses[toolKey].includes('failed')) return 'disconnected'
+      return 'syncing'
+    }
+    if (connectedKeys.has(toolKey)) return 'live'
+    const tool = ALL_TOOLS.find(t => t.key === toolKey)
+    if (!tool?.authUrl) return 'unavailable'
+    return 'disconnected'
+  }
+
+  const activeSyncs = Object.entries(syncStatuses).filter(([, v]) => v !== 'ready' && !v.includes('failed'))
+
   return (
     <div className="flex h-full bg-background">
       <HistorySidebar
-        history={history}
+        history={localHistory}
         show={showSidebar}
         onClose={() => setShowSidebar(false)}
+        onSelectQuery={handleSelectQuery}
+        onDeleteQuery={handleDeleteQuery}
       />
 
       <div className="flex flex-1 flex-col">
@@ -225,45 +299,86 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
               variant="ghost"
               size="icon-sm"
               onClick={() => setShowSidebar(!showSidebar)}
-              className="text-muted-foreground transition-colors duration-150 hover:text-foreground"
+              className="cursor-pointer text-muted-foreground transition-colors duration-150 hover:text-foreground"
             >
               <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </Button>
-            <button onClick={handleNewQuery} className="transition-opacity duration-150 hover:opacity-70">
+            <button onClick={handleNewQuery} className="cursor-pointer transition-opacity duration-150 hover:opacity-70">
               <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-6" />
             </button>
           </div>
 
           <div className="flex items-center gap-2">
             {hasAnswer && (
-              <Button variant="ghost" size="sm" onClick={handleNewQuery} className="text-xs text-muted-foreground transition-colors duration-150">
+              <Button variant="ghost" size="sm" onClick={handleNewQuery} className="cursor-pointer text-xs text-muted-foreground transition-colors duration-150">
                 New search
               </Button>
             )}
             <DropdownMenu>
-              <DropdownMenuTrigger className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground outline-none transition-all duration-150 hover:opacity-90">
-                {user.name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
+              <DropdownMenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full outline-none ring-2 ring-border/30 transition-all duration-150 hover:ring-primary/40">
+                <img
+                  src={user.avatar_url || `https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=e0e7ff`}
+                  alt={user.name || user.email}
+                  className="h-full w-full object-cover"
+                />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+              <DropdownMenuContent align="end" sideOffset={8} className="w-64">
                 <div className="px-2 py-2">
                   <p className="text-sm font-medium">{user.name}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuLabel>Connected tools</DropdownMenuLabel>
-                {connections.map((c) => (
-                  <div key={c.source_type} className="flex items-center gap-2 px-2 py-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <span className="text-sm">{c.source_type.replace('_', ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())}</span>
-                  </div>
-                ))}
+                {localConnections.length === 0 && (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">No tools connected</p>
+                )}
+                {localConnections.map((c) => {
+                  const tool = ALL_TOOLS.find(t => t.key === c.source_type)
+                  const status = getToolStatus(c.source_type)
+                  return (
+                    <div key={c.source_type} className="flex items-center justify-between px-2 py-1.5">
+                      <div className="flex items-center gap-2">
+                        {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
+                        <span className="text-sm">{tool?.name || c.source_type}</span>
+                        {status === 'live' && (
+                          <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            </span>
+                            Live
+                          </span>
+                        )}
+                        {status === 'syncing' && (
+                          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-blue-600">
+                            <svg className="h-2.5 w-2.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Syncing
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDisconnect(c.source_type)}
+                        className={`cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors ${
+                          disconnectConfirm === c.source_type
+                            ? 'bg-red-100 font-medium text-red-600'
+                            : 'text-muted-foreground hover:bg-red-50 hover:text-red-500'
+                        }`}
+                      >
+                        {disconnectConfirm === c.source_type ? 'Confirm?' : 'Disconnect'}
+                      </button>
+                    </div>
+                  )
+                })}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => { window.location.href = '/settings' }}>
+                <DropdownMenuItem className="cursor-pointer" onSelect={() => { window.location.href = '/settings' }}>
                   Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem variant="destructive" onSelect={handleLogout}>
+                <DropdownMenuItem className="cursor-pointer" variant="destructive" onSelect={handleLogout}>
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -271,26 +386,25 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
           </div>
         </header>
 
-        {/* Sync banner */}
-        {syncStatus && (
-          <div className={`flex items-center justify-center gap-2 px-4 py-2 text-sm ${
-            syncStatus.phase === 'Sync failed' ? 'bg-red-50 text-red-700' :
-            syncStatus.phase === 'Ready' ? 'bg-emerald-50 text-emerald-700' :
-            'bg-primary/5 text-primary'
+        {/* Per-tool sync banners */}
+        {activeSyncs.map(([toolKey, phase]) => (
+          <div key={toolKey} className={`flex items-center justify-center gap-2 px-4 py-1.5 text-xs ${
+            phase.includes('failed') ? 'bg-red-50 text-red-700' : 'bg-primary/5 text-primary'
           }`}>
-            {syncStatus.phase !== 'Ready' && syncStatus.phase !== 'Sync failed' && (
-              <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+            {!phase.includes('failed') && (
+              <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             )}
-            {syncStatus.phase === 'Ready'
-              ? `${syncStatus.tool} synced — ready to search!`
-              : syncStatus.phase === 'Sync failed'
-              ? `${syncStatus.tool} sync failed — try reconnecting.`
-              : `${syncStatus.phase} ${syncStatus.tool}... You can search once this completes.`}
+            {phase}
           </div>
-        )}
+        ))}
+        {Object.entries(syncStatuses).filter(([, v]) => v === 'ready').map(([toolKey]) => (
+          <div key={toolKey} className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs bg-emerald-50 text-emerald-700">
+            {TOOL_LABELS[toolKey] || toolKey} synced — ready to search!
+          </div>
+        ))}
 
         {/* Main content */}
         <main className={`flex flex-1 flex-col items-center ${hasAnswer ? 'pt-0' : 'justify-center'} overflow-y-auto`}>
@@ -318,7 +432,7 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
                   <button
                     type="submit"
                     disabled={isSearching || !query.trim()}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl bg-primary p-2.5 text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-md disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-xl bg-primary p-2.5 text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 hover:shadow-md disabled:cursor-default disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -336,23 +450,59 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
                   </p>
                   <div className="grid grid-cols-3 gap-2 mx-auto max-w-[360px]">
                     {ALL_TOOLS.map(tool => {
-                      const isConnected = connectedKeys.has(tool.key)
+                      const status = getToolStatus(tool.key)
+                      const isSyncing = status === 'syncing'
+
+                      function handleToolClick(e: React.MouseEvent) {
+                        if (status === 'live') {
+                          e.preventDefault()
+                          handleDisconnect(tool.key)
+                        } else if (status === 'unavailable') {
+                          e.preventDefault()
+                        }
+                      }
+
                       return (
                         <a
                           key={tool.key}
-                          href={tool.authUrl || '#'}
-                          className={`relative inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-150 hover:shadow-sm ${
-                            isConnected
-                              ? 'border-emerald-200 bg-emerald-50/50 text-foreground hover:border-emerald-300'
-                              : 'border-border/60 bg-background text-foreground hover:border-primary/30'
+                          href={status === 'disconnected' && tool.authUrl ? tool.authUrl : '#'}
+                          onClick={handleToolClick}
+                          className={`relative inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-2 text-xs font-medium transition-all duration-150 ${
+                            status === 'live'
+                              ? 'border-emerald-300 bg-emerald-50/80 text-foreground hover:border-emerald-400 hover:bg-emerald-50'
+                              : status === 'syncing'
+                              ? 'border-blue-200 bg-blue-50/50 text-foreground'
+                              : status === 'unavailable'
+                              ? 'cursor-default border-border/30 bg-muted/20 text-muted-foreground/50'
+                              : 'border-border/60 bg-background text-foreground hover:border-primary/30 hover:shadow-sm'
                           }`}
                         >
-                          <img src={tool.icon} alt={tool.name} className="h-4 w-4" />
+                          <img src={tool.icon} alt={tool.name} className={`h-4 w-4 ${status === 'unavailable' ? 'opacity-30' : ''}`} />
                           {tool.name}
-                          {isConnected && (
-                            <svg className="h-3 w-3 text-emerald-500" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
+
+                          {/* Status indicator */}
+                          {status === 'live' && !disconnectConfirm && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                            </span>
+                          )}
+                          {status === 'live' && disconnectConfirm === tool.key && (
+                            <span className="text-[9px] font-semibold text-red-500">Disconnect?</span>
+                          )}
+                          {isSyncing && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                            </span>
+                          )}
+                          {status === 'disconnected' && (
+                            <span className="relative flex h-2 w-2">
+                              <span className="relative inline-flex h-2 w-2 rounded-full bg-red-400/60" />
+                            </span>
+                          )}
+                          {status === 'unavailable' && (
+                            <span className="text-[9px] text-muted-foreground/40">Soon</span>
                           )}
                         </a>
                       )
@@ -379,7 +529,7 @@ export default function SearchView({ user, connections, history, autoSync }: Sea
                     <button
                       type="submit"
                       disabled={isSearching || !query.trim()}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground transition-all duration-150 hover:text-primary disabled:opacity-30"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-all duration-150 hover:text-primary disabled:cursor-default disabled:opacity-30"
                     >
                       {isSearching ? (
                         <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">

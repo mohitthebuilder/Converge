@@ -162,8 +162,7 @@ export async function POST(request: NextRequest) {
       await stream.finalMessage()
       const latencyMs = Date.now() - start
 
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'done', latencyMs })}\n\n`))
-
+      let answerId: string | null = null
       const userId = await getSession()
       if (userId) {
         const { data: queryRow } = await supabaseServer
@@ -173,7 +172,7 @@ export async function POST(request: NextRequest) {
           .single()
 
         if (queryRow) {
-          await supabaseServer
+          const { data: answerRow } = await supabaseServer
             .from('answer')
             .insert({
               query_id: queryRow.id,
@@ -181,8 +180,13 @@ export async function POST(request: NextRequest) {
               model_used: 'claude-sonnet-4-6',
               latency_ms: latencyMs,
             })
+            .select('id')
+            .single()
+          answerId = answerRow?.id || null
         }
       }
+
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'done', latencyMs, answerId })}\n\n`))
     } catch (err) {
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'error', message: String(err) })}\n\n`))
     } finally {

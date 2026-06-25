@@ -19,18 +19,23 @@ export async function POST(request: NextRequest) {
 
   const docIds = docs.map(d => d.id)
 
-  // Get chunks without embeddings
-  const { data: chunks, error } = await supabaseServer
-    .from('chunk')
-    .select('id, content')
-    .in('document_id', docIds)
-    .is('embedding', null)
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  // Get chunks without embeddings — batch docId lookups to avoid URL length limits
+  const ID_BATCH = 100
+  const chunks: { id: string; content: string }[] = []
+  for (let i = 0; i < docIds.length; i += ID_BATCH) {
+    const batch = docIds.slice(i, i + ID_BATCH)
+    const { data, error } = await supabaseServer
+      .from('chunk')
+      .select('id, content')
+      .in('document_id', batch)
+      .is('embedding', null)
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    if (data) chunks.push(...data)
   }
 
-  if (!chunks || chunks.length === 0) {
+  if (chunks.length === 0) {
     return NextResponse.json({ embedded: 0, message: 'All chunks already have embeddings' })
   }
 
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      return NextResponse.json({ embedded, error: message, failedAtBatch: Math.floor(i / BATCH_SIZE) }, { status: 500 })
+      console.error(`Embed batch ${Math.floor(i / BATCH_SIZE)} failed: ${message}`)
     }
   }
 
