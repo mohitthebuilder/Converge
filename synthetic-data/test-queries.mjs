@@ -1,10 +1,10 @@
 /**
  * Test Query Runner
  *
- * Runs all 20 test queries against the live pipeline and captures results
+ * Runs all test queries against the live pipeline and captures results
  * for comparison against ground truth.
  *
- * Usage: node synthetic-data/test-queries.mjs
+ * Usage: node synthetic-data/test-queries.mjs [tag]
  * Requires: dev server running on port 3000, synthetic data seeded
  */
 
