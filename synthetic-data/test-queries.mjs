@@ -79,10 +79,11 @@ async function main() {
     console.log(` ${wallMs}ms | ${result.sources.length} sources | ${result.answer.length} chars`)
   }
 
-  // Write results
-  const outPath = new URL('./test-results.json', import.meta.url)
+  // Write results — versioned filename, never overwrite previous runs
+  const tag = process.argv[2] || `run-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}`
+  const outPath = new URL(`./test-results-${tag}.json`, import.meta.url)
   writeFileSync(outPath, JSON.stringify(results, null, 2))
-  console.log(`\nResults written to synthetic-data/test-results.json`)
+  console.log(`\nResults written to synthetic-data/test-results-${tag}.json`)
 
   // Print summary
   console.log('\n=== SUMMARY ===\n')

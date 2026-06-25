@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, RetrievedChunk } from '@/lib/pipeline/retrieve'
+import { rewriteQuery } from '@/lib/pipeline/rewrite'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
 
@@ -73,7 +74,22 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const chunks = await retrieve(query)
+  const rewrite = await rewriteQuery(query)
+  const allChunks: RetrievedChunk[] = []
+  const seenChunkIds = new Set<string>()
+
+  for (const subQuery of rewrite.subQueries) {
+    const subChunks = await retrieve(subQuery)
+    for (const chunk of subChunks) {
+      if (!seenChunkIds.has(chunk.id)) {
+        seenChunkIds.add(chunk.id)
+        allChunks.push(chunk)
+      }
+    }
+  }
+
+  allChunks.sort((a, b) => b.similarity - a.similarity)
+  const chunks = allChunks
 
   if (chunks.length === 0) {
     const encoder = new TextEncoder()
@@ -133,7 +149,7 @@ export async function POST(request: NextRequest) {
       if (userId) {
         const { data: queryRow } = await supabaseServer
           .from('query')
-          .insert({ user_id: userId, original_query: query, live_context_on: false })
+          .insert({ user_id: userId, original_query: query, rewritten_query: rewrite.subQueries.join(' | '), live_context_on: false })
           .select('id')
           .single()
 

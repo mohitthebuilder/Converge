@@ -1,6 +1,6 @@
 {
   "company": "Orion",
-  "description": "30 test queries across 5 complexity levels for a B2B SaaS developer tools company. Each query maps to expected source documents and a ground truth answer summary. v2: added Q21-Q30 targeting new personas (CEO, CS, Analytics, Legal, HR), new doc types (postmortem, A/B test, DPA, API spec, change mgmt), and noise/edge case handling.",
+  "description": "45 test queries for a B2B SaaS developer tools company. Q01-Q30: well-formed PM queries across 5 complexity levels (v1+v2). Q31-Q45: messy rewriter-challenge queries testing vague, temporal, acronym, multi-intent, short, and informal inputs. Each query maps to expected source documents and a ground truth answer.",
   "queries": [
     {
       "id": "Q01",
@@ -271,6 +271,156 @@
       "expected_sources": ["doc-33-change-mgmt-auth", "doc-26-api-spec-auth"],
       "ground_truth": "Three rollback levels using LaunchDarkly feature flags: Level 1 (minor, <1% failures): route affected customers back to legacy via targeting rules, <5 min recovery. Level 2 (major, >5% failures or enterprise impacted): disable auth-v3-enabled flag globally, all traffic returns to legacy in <2 min + 30s CDN propagation. Level 3 (critical, security/data integrity): disable flag + revoke ALL v3 tokens + force re-authentication, <10 min recovery. The migration runs in 3 phases: July (new + legacy parallel), August 15 GA (legacy deprecated), November 15 (legacy removed, 90-day sunset).",
       "tests": "Operational detail retrieval from change management plan — specific rollback procedures"
+    },
+    {
+      "id": "Q31",
+      "query": "that pricing thing tom was pushing",
+      "level": "rewriter",
+      "rewriter_challenge": "vague",
+      "persona": "any",
+      "expected_sources": ["doc-14-sales-product-sync", "doc-11-1on1-notes", "doc-16-pricing-sheet"],
+      "ground_truth": "Tom Walsh proposed lowering Enterprise tier pricing from $1,200/month to $999/month to compete with Postman's team plan ($49/user/month). Anya pushed back, arguing that lost deals were due to feature gaps (auth, SOC2), not price. No decision was made. Current Enterprise pricing anchors at $1,200/month with a floor of $900/month for annual commits.",
+      "expected_rewrite": "What pricing changes has Tom Walsh proposed for the Enterprise tier?"
+    },
+    {
+      "id": "Q32",
+      "query": "what was decided about the mobile thing",
+      "level": "rewriter",
+      "rewriter_challenge": "vague",
+      "persona": "any",
+      "expected_sources": ["doc-04-mobile-decision", "doc-03-mobile-prd"],
+      "ground_truth": "Orion Mobile was cancelled on June 2, 2026. The 8-week pilot showed 120 DAU (vs 500 target), 2.3 min average session (vs 5 min target), and NPS of 31. Anya Patel made the kill decision. The 2.5 FTEs were reallocated to Connect. Alternatives considered included PWA and mobile-responsive web, both rejected.",
+      "expected_rewrite": "What was the decision regarding the Orion Mobile project?"
+    },
+    {
+      "id": "Q33",
+      "query": "whats the latest on meridian",
+      "level": "rewriter",
+      "rewriter_challenge": "vague",
+      "persona": "any",
+      "expected_sources": ["doc-14-sales-product-sync", "doc-07-product-review", "doc-23-cs-escalation-meridian", "doc-06-meridian-research"],
+      "ground_truth": "Meridian Corp ($180K/yr deal) is stalled. Technical eval completed in May. Three blockers: (1) API auth simplification not shipped, (2) SOC2 Type II not started, (3) 24-month audit log retention needed. Their champion Dana Torres is enthusiastic but procurement and CISO are skeptical. Tom says auth must ship by August 1 or deal likely moves to Q4 or lost to Postman. Additionally, Meridian raised a per-endpoint rate limiting issue which Anya approved fixing.",
+      "expected_rewrite": "What is the current status of the Meridian Corp enterprise deal?"
+    },
+    {
+      "id": "Q34",
+      "query": "updates from last week's meeting",
+      "level": "rewriter",
+      "rewriter_challenge": "temporal",
+      "persona": "any",
+      "expected_sources": ["doc-31-allhands-june19"],
+      "ground_truth": "The most recent company meeting was the June 19 all-hands. Key updates: ARR at $4.2M with 50% growth in 6 months; Studio v3.0 on track for August 15; Connect at 31 integrations; Meridian is the top priority enterprise deal; SOC2 decision expected by end of June; hackathon planned for July 18-19; Vossen deal likely dead for Q3; 4 open hiring positions with 3 more planned for Q4.",
+      "expected_rewrite": "What were the key updates from the most recent company meeting (around June 19, 2026)?"
+    },
+    {
+      "id": "Q35",
+      "query": "any recent incidents",
+      "level": "rewriter",
+      "rewriter_challenge": "temporal",
+      "persona": "any",
+      "expected_sources": ["doc-27-incident-postmortem", "doc-32-incidents-slack-export"],
+      "ground_truth": "The most significant recent incident was a SEV-1 API gateway 502 outage on June 6, 2026, lasting 84 minutes. Root cause: Atlas Corp's webhook retry loop exhausted the connection pool (500 max). Contributing factor: connection pool alert was disabled during May maintenance and never re-enabled. Impact: ~340 enterprise API consumers and ~1,200 free/pro users affected, 12,400 failed API calls. There was also a minor search index incident on June 3 (stale alias after rebuild, resolved in 26 minutes).",
+      "expected_rewrite": "What production incidents have occurred recently at Orion (June 2026)?"
+    },
+    {
+      "id": "Q36",
+      "query": "CS feedback on at-risk accounts",
+      "level": "rewriter",
+      "rewriter_challenge": "acronym",
+      "persona": "any",
+      "expected_sources": ["doc-22-account-health-dashboard", "doc-23-cs-escalation-meridian"],
+      "ground_truth": "Customer Success has identified 4 of 12 enterprise accounts at HIGH or CRITICAL churn risk: (1) Atlas Corp (CRITICAL, $6,200 MRR) — active escalation over gateway timeouts, threatening contract termination, (2) NovaTech Industries (HIGH, $3,800 MRR) — champion left, (3) Pinnacle Systems (HIGH, $2,200 MRR) — usage declining 3 months, evaluating Postman, (4) Verdant Labs (HIGH, $1,500 MRR) — contract expires July 31, unresponsive. Total revenue at risk: $144K/yr ARR.",
+      "expected_rewrite": "What is the Customer Success team's assessment of enterprise accounts at risk of churning?"
+    },
+    {
+      "id": "Q37",
+      "query": "DAU trends for both products",
+      "level": "rewriter",
+      "rewriter_challenge": "acronym",
+      "persona": "any",
+      "expected_sources": ["doc-24-analytics-weekly"],
+      "ground_truth": "From the June 9 analytics weekly: Studio WAU is 3,420 (up 2.1% WoW, 8.3% MoM), MAU 8,900, DAU/MAU ratio 0.38. Connect WAU is 890 (up 4.7% WoW, 18.2% MoM), MAU 2,100, DAU/MAU ratio 0.42. Connect's higher DAU/MAU ratio suggests more habitual usage, likely driven by API monitoring features. Note: Studio DAU is slightly inflated (~3%) due to a tracking pixel bug fixed June 7.",
+      "expected_rewrite": "What are the daily active user trends for Orion Studio and Connect?"
+    },
+    {
+      "id": "Q38",
+      "query": "what are the blockers for v3 and also how is the connect marketplace doing",
+      "level": "rewriter",
+      "rewriter_challenge": "multi-intent",
+      "persona": "any",
+      "expected_sources": ["doc-01-studio-prd", "doc-07-product-review", "doc-09-tech-architecture", "doc-02-connect-prd", "doc-05-okr-planning"],
+      "ground_truth": "Studio v3.0 blockers: (1) gRPC migration must reach 80% endpoint coverage (currently 60%) before auth overhaul can ship, (2) Jake is a SPOF across both gRPC migration and auth overhaul with no buffer in the sprint, (3) auth overhaul is on the critical path — 2+ week slip moves GA to September. Connect marketplace status: 31 integrations published (12 first-party, 19 partner-built), targeting 50 by end of Q3. 8 partners in active onboarding. First external partner (DataForge) published via new self-serve flow. Partner pipeline is healthy. Confidence is HIGH on the marketplace growth OKR.",
+      "expected_rewrite": "What are the current blockers for Studio v3.0? What is the status of the Connect marketplace?"
+    },
+    {
+      "id": "Q39",
+      "query": "who owns auth and what's the SOC2 situation",
+      "level": "rewriter",
+      "rewriter_challenge": "multi-intent",
+      "persona": "any",
+      "expected_sources": ["doc-01-studio-prd", "doc-09-tech-architecture", "doc-18-soc2-checklist", "doc-10-org-chart"],
+      "ground_truth": "Auth overhaul is owned by Jake Kim (Engineering Lead), with the feature work in the Studio v3.0 PRD owned by Marcos Rivera. Jake's team is building the new OAuth2 + PKCE flow to replace the legacy 3-step token exchange. Auth is 40% complete. SOC2 situation: not ready. Jake drafted a preliminary checklist showing ~40% of items addressed. Major gaps include audit logging (in v3.0 scope), incident response plan, vendor security assessments, and data classification policy. No formal owner, no timeline. Anya is evaluating hire-in-house vs. compliance platform (Vanta/Drata) with a decision expected by end of June. Estimated 3-4 months to reach readiness with a dedicated compliance lead.",
+      "expected_rewrite": "Who is the owner of the API authentication overhaul? What is the current state of SOC2 compliance readiness?"
+    },
+    {
+      "id": "Q40",
+      "query": "tell me about the enterprise deals and also what did the A/B test show",
+      "level": "rewriter",
+      "rewriter_challenge": "multi-intent",
+      "persona": "any",
+      "expected_sources": ["doc-14-sales-product-sync", "doc-07-product-review", "doc-25-ab-test-results"],
+      "ground_truth": "Enterprise deals: (1) Meridian Corp ($180K/yr) — stalled, needs auth + SOC2 to unblock procurement, (2) Arclight Systems ($95K/yr) — early discovery, technical demo scheduled June 20, also mentioned SOC2, (3) Vossen Technologies ($60K/yr) — cold, unresponsive, likely dead for Q3. Total pipeline: $335K/yr. A/B test (EXP-042): tested 3-step vs 5-step Connect onboarding (n=410). Variant B (3-step) won significantly: activation rate 57.5% vs 44.8% (+28.3%, p=0.007), time-to-first-API-call 22min vs 48min. 30-day retention unchanged. Recommendation: ship variant B.",
+      "expected_rewrite": "What is the status of the enterprise sales pipeline? What were the results of the Connect onboarding A/B test (EXP-042)?"
+    },
+    {
+      "id": "Q41",
+      "query": "churn",
+      "level": "rewriter",
+      "rewriter_challenge": "short",
+      "persona": "any",
+      "expected_sources": ["doc-08-board-update", "doc-07-product-review", "doc-22-account-health-dashboard", "doc-05-okr-planning"],
+      "ground_truth": "Studio monthly churn is trending down: 4.8% in Q1 to 4.2% in Q2, with a Q3 target of below 4.0%. The OKR goal is to reduce churn below 3.8%. On the enterprise side, 4 of 12 accounts are at HIGH or CRITICAL churn risk representing $144K/yr ARR at risk. The most critical is Atlas Corp ($6,200 MRR) with an active escalation over gateway issues.",
+      "expected_rewrite": "What are the current churn rates and churn risk status across Orion's products and accounts?"
+    },
+    {
+      "id": "Q42",
+      "query": "jake",
+      "level": "rewriter",
+      "rewriter_challenge": "short",
+      "persona": "any",
+      "expected_sources": ["doc-10-org-chart", "doc-01-studio-prd", "doc-09-tech-architecture", "doc-07-product-review"],
+      "ground_truth": "Jake Kim is Orion's Engineering Lead, reporting to Anya Patel (CPO). He manages both the Studio and Connect engineering squads. Currently leading two critical workstreams: the gRPC migration (60% complete, target 80%) and the API auth overhaul (40% complete) for Studio v3.0. He is flagged as a single point of failure by multiple stakeholders. Anya noted burnout risk after Marcos mentioned Jake worked a weekend. Plan to hire an Engineering Manager for Connect in Q4 to reduce Jake's span.",
+      "expected_rewrite": "What is Jake Kim's role, responsibilities, and current workload at Orion?"
+    },
+    {
+      "id": "Q43",
+      "query": "hows the grpc migraiton going and when will it be done",
+      "level": "rewriter",
+      "rewriter_challenge": "informal",
+      "persona": "any",
+      "expected_sources": ["doc-09-tech-architecture", "doc-07-product-review", "doc-01-studio-prd"],
+      "ground_truth": "The gRPC migration is at 60% endpoint coverage. Target is 80% before the auth overhaul can ship (auth is on the critical path for Studio v3.0 GA on August 15). Remaining 40% of endpoints are still on REST, requiring dual maintenance. Jake estimates 3 sprints to complete the full migration. The dual REST/gRPC stack creates maintenance overhead since every new endpoint needs both implementations until migration is complete.",
+      "expected_rewrite": "What is the current progress of the gRPC migration and when is it expected to be completed?"
+    },
+    {
+      "id": "Q44",
+      "query": "nexus just raised right?? whats their strategy and shud we be worried",
+      "level": "rewriter",
+      "rewriter_challenge": "informal",
+      "persona": "any",
+      "expected_sources": ["doc-12-competitive-analysis", "doc-20-product-vision"],
+      "ground_truth": "Nexus raised a $45M Series C in April 2026 (total raised: $72M). They grew to ~120 people and hired Kira Novak (ex-Stripe Head of Platform) as CPO. Their strategy is expanding into a full-stack developer platform: IDE (primary), API testing suite (launched April, direct threat to Connect), and AI code assistant (launched May). Key risk: their API testing is bundled free with the IDE plan, undercutting Connect's paid marketplace. Our advantage: deeper integration ecosystem (31 vs 8 integrations), better enterprise auth story once v3.0 ships, and stronger API gateway capabilities. Leo acknowledged being 'a little worried' but believes Orion's focus on two products beats Nexus spreading across three.",
+      "expected_rewrite": "What is Nexus's recent funding, product strategy, and competitive threat to Orion?"
+    },
+    {
+      "id": "Q45",
+      "query": "RBAC status and ETA",
+      "level": "rewriter",
+      "rewriter_challenge": "acronym",
+      "persona": "any",
+      "expected_sources": ["doc-01-studio-prd", "doc-17-design-review"],
+      "ground_truth": "Role-Based Access Control is in the design phase for Studio v3.0 (GA August 15, 2026). Three default roles planned: Admin, Developer, and Viewer. Custom roles deferred to v3.1. Owned by Marcos Rivera with a 2-week engineering estimate. Sarah Chen proposed an accordion-based permission groups UI (API Access, Data Management, Admin Controls). The permission matrix design needs input from Sarah. Jake requested a JSON editor for power users, deferred to v3.1.",
+      "expected_rewrite": "What is the current status and timeline for the Role-Based Access Control feature in Studio v3.0?"
     }
   ]
 }
