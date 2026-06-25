@@ -58,12 +58,12 @@ async function ensureSyntheticUser() {
   return created.id
 }
 
-async function ensureSyntheticConnection(userId) {
+async function ensureSyntheticConnection(userId, sourceType) {
   const existing = await supabaseRest(
-    `connection?user_id=eq.${userId}&source_type=eq.google_drive&select=id`
+    `connection?user_id=eq.${userId}&source_type=eq.${sourceType}&select=id`
   )
   if (existing && existing.length > 0) {
-    console.log(`  Connection exists: ${existing[0].id}`)
+    console.log(`  Connection exists (${sourceType}): ${existing[0].id}`)
     return existing[0].id
   }
 
@@ -71,13 +71,13 @@ async function ensureSyntheticConnection(userId) {
     method: 'POST',
     body: JSON.stringify({
       user_id: userId,
-      source_type: 'google_drive',
+      source_type: sourceType,
       oauth_token: 'synthetic-token',
       refresh_token: 'synthetic-refresh',
       status: 'active',
     }),
   })
-  console.log(`  Connection created: ${created.id}`)
+  console.log(`  Connection created (${sourceType}): ${created.id}`)
   return created.id
 }
 
@@ -152,24 +152,46 @@ async function main() {
   console.log('\n2. Ensuring synthetic user...')
   const userId = await ensureSyntheticUser()
 
-  console.log('\n3. Ensuring synthetic connection...')
-  const connectionId = await ensureSyntheticConnection(userId)
+  const sourceTypes = [...new Set(documents.map(d => d.source_type))]
+  console.log(`  Source types found: ${sourceTypes.join(', ')}`)
 
-  console.log('\n4. Clearing existing synthetic data...')
-  await clearExistingSyntheticDocs(connectionId)
+  const connectionIds = {}
+  for (const sourceType of sourceTypes) {
+    console.log(`\n3. Ensuring synthetic connection (${sourceType})...`)
+    connectionIds[sourceType] = await ensureSyntheticConnection(userId, sourceType)
+  }
+
+  for (const sourceType of sourceTypes) {
+    const connId = connectionIds[sourceType]
+    console.log(`\n4. Clearing existing synthetic data (${sourceType})...`)
+    await clearExistingSyntheticDocs(connId)
+  }
 
   console.log('\n5. Inserting documents...')
-  const inserted = await insertDocuments(connectionId, documents)
-  console.log(`  Total inserted: ${inserted}/${documents.length}`)
+  let totalInserted = 0
+  for (const sourceType of sourceTypes) {
+    const connId = connectionIds[sourceType]
+    const typeDocs = documents.filter(d => d.source_type === sourceType)
+    console.log(`  Inserting ${typeDocs.length} ${sourceType} documents...`)
+    const inserted = await insertDocuments(connId, typeDocs)
+    totalInserted += inserted
+  }
+  console.log(`  Total inserted: ${totalInserted}/${documents.length}`)
 
-  const chunkResult = await runPipelineStep('/api/pipeline/chunk', connectionId, '6. Chunking')
-
-  const embedResult = await runPipelineStep('/api/pipeline/embed', connectionId, '7. Embedding')
+  let totalChunks = 0
+  let totalEmbeddings = 0
+  for (const sourceType of sourceTypes) {
+    const connId = connectionIds[sourceType]
+    const chunkResult = await runPipelineStep('/api/pipeline/chunk', connId, `6. Chunking (${sourceType})`)
+    totalChunks += chunkResult.totalChunks || 0
+    const embedResult = await runPipelineStep('/api/pipeline/embed', connId, `7. Embedding (${sourceType})`)
+    totalEmbeddings += embedResult.embedded || 0
+  }
 
   console.log('\n=== DONE ===')
-  console.log(`Documents: ${inserted}`)
-  console.log(`Chunks: ${chunkResult.totalChunks}`)
-  console.log(`Embeddings: ${embedResult.embedded}`)
+  console.log(`Documents: ${totalInserted}`)
+  console.log(`Chunks: ${totalChunks}`)
+  console.log(`Embeddings: ${totalEmbeddings}`)
 
   process.exit(0)
 }

@@ -5,7 +5,7 @@ const ALL_TOOLS = [
   { key: 'slack', name: 'Slack', authUrl: null },
   { key: 'notion', name: 'Notion', authUrl: null },
   { key: 'jira', name: 'Jira', authUrl: null },
-  { key: 'gmail', name: 'Gmail', authUrl: null },
+  { key: 'gmail', name: 'Gmail', authUrl: '/api/auth/gmail' },
   { key: 'figma', name: 'Figma', authUrl: null },
 ]
 

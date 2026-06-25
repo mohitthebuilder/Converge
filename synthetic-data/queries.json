@@ -1,6 +1,6 @@
 {
   "company": "Orion",
-  "description": "45 test queries for a B2B SaaS developer tools company. Q01-Q30: well-formed PM queries across 5 complexity levels (v1+v2). Q31-Q45: messy rewriter-challenge queries testing vague, temporal, acronym, multi-intent, short, and informal inputs. Each query maps to expected source documents and a ground truth answer.",
+  "description": "60 test queries for a B2B SaaS developer tools company. Q01-Q30: well-formed PM queries across 5 complexity levels (v1+v2). Q31-Q45: messy rewriter-challenge queries testing vague, temporal, acronym, multi-intent, short, and informal inputs. Q46-Q60: Gmail connector queries testing email thread retrieval, cross-source answers, noise filtering, and informal email-specific lookups. Each query maps to expected source documents and a ground truth answer.",
   "queries": [
     {
       "id": "Q01",
@@ -421,6 +421,151 @@
       "expected_sources": ["doc-01-studio-prd", "doc-17-design-review"],
       "ground_truth": "Role-Based Access Control is in the design phase for Studio v3.0 (GA August 15, 2026). Three default roles planned: Admin, Developer, and Viewer. Custom roles deferred to v3.1. Owned by Marcos Rivera with a 2-week engineering estimate. Sarah Chen proposed an accordion-based permission groups UI (API Access, Data Management, Admin Controls). The permission matrix design needs input from Sarah. Jake requested a JSON editor for power users, deferred to v3.1.",
       "expected_rewrite": "What is the current status and timeline for the Role-Based Access Control feature in Studio v3.0?"
+    },
+    {
+      "id": "Q46",
+      "query": "What's the latest update on the Meridian deal from sales?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-41-gmail-meridian-deal", "doc-22-account-health-dashboard"],
+      "ground_truth": "Per Tom Walsh's June 20 email: Meridian is ready to sign if three conditions are met by August 15 — (1) OAuth2+PKCE in production (not staging), (2) SOC2 Type II audit engagement letter, (3) Data residency commitment for US-East. Deal size could expand from $180K/yr to $240-280K if their DevOps team adopts Connect. Open issue: Meridian wants 99.95% uptime SLA (Anya approved). Anya will get SOC2 engagement letter from Coalfire by July 10.",
+      "tests": "Email-specific deal update, cross-source with Drive docs"
+    },
+    {
+      "id": "Q47",
+      "query": "What happened during the last production incident?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-27-incident-postmortem", "doc-42-gmail-incident-thread"],
+      "ground_truth": "API Gateway 502 outage on June 6, 2026. Root cause: auth proxy connection pool (50 max) exhausted by burst of 800 token refresh requests from Arclight Systems in 2 minutes. 34% error rate for 13 minutes. Fixed by increasing pool to 200 and adding rate limiting (10 token refreshes per client per minute). Three other customers hit intermittent 502s. Jake recommended per-client connection pooling (2-3 sprint effort).",
+      "tests": "Cross-source: formal postmortem doc + real-time email thread"
+    },
+    {
+      "id": "Q48",
+      "query": "Has anyone reached out about partnering with Orion Connect?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-43-gmail-partner-request"],
+      "ground_truth": "DevSync Labs (workflow automation, backed by Sequoia Series A $12M) reached out via their CTO Alex Nguyen on June 14. They want to build an Orion Connect integration to trigger DevSync workflows from API events. 'Orion' mentioned in 15% of their feature requests. Priya provided sandbox keys; Tom sent partner agreement with 80/20 revenue share terms. Target: marketplace listing by end of July.",
+      "tests": "External email retrieval, partner pipeline query"
+    },
+    {
+      "id": "Q49",
+      "query": "What's the internal debate about Enterprise pricing?",
+      "level": "complex",
+      "persona": "any",
+      "expected_sources": ["doc-44-gmail-pricing-debate", "doc-16-pricing-sheet"],
+      "ground_truth": "Tom Walsh proposed lowering Enterprise from $1,200/month to $799/month, citing lost deals against Postman and Kong. Marcos pushed back — argues lowering price signals weak differentiation, and proposed a new 'Growth' tier at $599/month instead. Anya's decision: keep Enterprise at $1,200, add Growth tier at $599, and offer Enterprise prospects a 3-month trial at 50% off ($600/month). Also mandated tracking win/loss reasons more rigorously.",
+      "tests": "Multi-perspective internal debate, cross-source with pricing doc"
+    },
+    {
+      "id": "Q50",
+      "query": "Who are we interviewing for the new PM role?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-47-gmail-hiring-update", "doc-28-headcount-planning"],
+      "ground_truth": "Three candidates in final rounds for Senior PM (Connect team): (1) Nina Kapoor — 8yr, from Twilio, $210K ask, strong API platform background. (2) Derek Yamamoto — 6yr, from Stripe, $195K ask, data-driven but light on marketplace experience. (3) Rachel Okafor — 10yr, ex-Google Cloud Marketplace PM, $230K ask, perfect domain fit. Both Anya and Priya rank Rachel #1. Nina has competing Datadog offer expiring July 1.",
+      "tests": "Hiring pipeline from email, sensitive internal context"
+    },
+    {
+      "id": "Q51",
+      "query": "What did the SOC2 auditor recommend?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-49-gmail-soc2-auditor", "doc-18-soc2-checklist"],
+      "ground_truth": "Coalfire (Diana Marshall) identified 6 gaps: (1) Audit logging — need centralized, immutable trail with S3 storage (Critical). (2) Access reviews — need quarterly documented reviews (Critical). (3) Incident response plan — need formal runbook with severity levels and SLAs (Major). (4) Change management — need required GitHub reviewers and deployment logs (Major). (5) Encryption — migrate to customer-managed KMS keys (Moderate). (6) Vendor management — need inventory and security assessments (Moderate). If gaps 1-4 fixed by August 15, formal audit starts September 1. Earliest certification: March 2027.",
+      "tests": "Compliance details from external auditor email, cross-source with internal SOC2 checklist"
+    },
+    {
+      "id": "Q52",
+      "query": "What's the latest customer escalation?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-46-gmail-customer-escalation"],
+      "ground_truth": "Arclight Systems (Enterprise tier, $96K/yr) escalated about API rate limiting breaking their CI/CD pipeline. After the June 6 incident, Orion added rate limits (10 token refreshes/minute) without notifying customers. Arclight's VP of Engineering Mike Torres threatened to evaluate Kong and AWS API Gateway by June 25. Priya responded: increased their limit to 100/minute immediately, committed to publishing rate limit docs and 72-hour advance notice for future changes.",
+      "tests": "Customer complaint from escalation email"
+    },
+    {
+      "id": "Q53",
+      "query": "What feedback did Sarah give on the dashboard redesign?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-48-gmail-design-feedback", "doc-17-design-review"],
+      "ground_truth": "Sarah Chen's June 16 email covers: (1) Went with Option B collapsible sidebar navigation. (2) Redesigned permission matrix with feature-area grouping (API access, User management, Billing, Audit). (3) Moved activity feed to dedicated tab based on user research. (4) Switched from traffic light status indicators to brand palette (indigo/amber/hatched) for accessibility. (5) Open issue: need to consolidate 3 date pickers down to 1 (Jake recommended shadcn). Jake flagged potential sidebar conflict with API playground layout on 13\" laptops.",
+      "tests": "Design feedback from email, cross-source with formal design review doc"
+    },
+    {
+      "id": "Q54",
+      "query": "What are the team's weekly product highlights?",
+      "level": "basic",
+      "persona": "any",
+      "expected_sources": ["doc-45-gmail-product-digest"],
+      "ground_truth": "Week of June 16-20: Studio auth overhaul at 45% (up from 40%), RBAC design review completed (Option B selected), gRPC migration at 65%. Connect received two new partner applications (DevSync Labs, CloudMeter), gateway p99 latency improved from 340ms to 290ms. Metrics: Studio DAU 1,420 (flat), Connect MAU 890 (up 6%), support tickets 23 (down), NPS 51.",
+      "tests": "Digest email retrieval"
+    },
+    {
+      "id": "Q55",
+      "query": "What churn data did Marcos share recently?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-50-gmail-churn-analysis", "doc-24-analytics-weekly"],
+      "ground_truth": "May 2026 churn: 3.9% overall (down from 4.2% April, 4.5% March). By segment: Individual 5.1%, Team 3.2%, Enterprise 0.8%. By product: Studio-only 4.3%, Connect-only 2.8%, Bundle 1.2%. Key insight: bundling reduces churn significantly. Top churn reasons: competitor switch (35%, Nexus dominant), underuse (26%), price (21%). Anya decided: make bundle default sales pitch, prioritize at-risk alert model. Q3 target: <3.8%.",
+      "tests": "Churn data from email, BM25 keyword match, cross-source"
+    },
+    {
+      "id": "Q56",
+      "query": "fwd from tom about meridian pricing",
+      "level": "rewriter",
+      "rewriter_challenge": "informal",
+      "persona": "any",
+      "expected_sources": ["doc-41-gmail-meridian-deal", "doc-44-gmail-pricing-debate"],
+      "ground_truth": "Two relevant email threads from Tom Walsh: (1) Meridian deal update — they're ready to sign at $180K/yr if three security conditions met by August 15, potential expansion to $240-280K. (2) Enterprise pricing debate — Tom proposed lowering from $1,200 to $799/month, Anya decided to keep $1,200 and add Growth tier at $599.",
+      "expected_rewrite": "What has Tom Walsh forwarded or shared about Meridian's pricing or deal status?",
+      "tests": "Messy query, email-specific (forward), cross-source email retrieval"
+    },
+    {
+      "id": "Q57",
+      "query": "auditor email about soc2",
+      "level": "rewriter",
+      "rewriter_challenge": "informal",
+      "persona": "any",
+      "expected_sources": ["doc-49-gmail-soc2-auditor"],
+      "ground_truth": "Coalfire's pre-assessment found 6 gaps: audit logging (critical), access reviews (critical), incident response plan (major), change management (major), encryption at rest (moderate), vendor management (moderate). Formal audit can start September 1 if critical/major gaps fixed by August 15. Earliest SOC2 Type II certification: March 2027.",
+      "expected_rewrite": "What did the external auditor say about SOC2 compliance requirements in their email assessment?",
+      "tests": "Informal query, email-specific content"
+    },
+    {
+      "id": "Q58",
+      "query": "any customer complaints this month",
+      "level": "rewriter",
+      "rewriter_challenge": "vague",
+      "persona": "any",
+      "expected_sources": ["doc-46-gmail-customer-escalation", "doc-23-cs-escalation-meridian"],
+      "ground_truth": "Two escalations: (1) Arclight Systems — rate limiting broke their CI/CD pipeline after June 6 incident. VP of Engineering threatened to evaluate alternatives. Resolved with increased limits and communication commitment. (2) Meridian — earlier API rate limiting issue documented in support thread. Both relate to enterprise customers hitting operational issues with the gateway.",
+      "expected_rewrite": "What customer complaints or escalations have been raised recently?",
+      "tests": "Vague query, should surface escalation emails"
+    },
+    {
+      "id": "Q59",
+      "query": "latest hiring pipeline",
+      "level": "rewriter",
+      "rewriter_challenge": "short",
+      "persona": "any",
+      "expected_sources": ["doc-47-gmail-hiring-update", "doc-28-headcount-planning"],
+      "ground_truth": "Three Senior PM candidates for Connect team in final rounds: Rachel Okafor (ex-Google, top choice), Nina Kapoor (Twilio), Derek Yamamoto (Stripe). Nina has competing offer expiring July 1. Broader headcount: approved to hire 4 engineers (2 Studio, 2 Connect) in Q3. Senior PM role was filled (doc-36 shows FILLED status) but this appears to be a different/additional hire.",
+      "expected_rewrite": "What is the current hiring pipeline and status of open positions?",
+      "tests": "Short query, cross-source email + Drive docs"
+    },
+    {
+      "id": "Q60",
+      "query": "build failures this week",
+      "level": "rewriter",
+      "rewriter_challenge": "short",
+      "persona": "any",
+      "expected_sources": ["doc-51-gmail-ci-notifications"],
+      "ground_truth": "CI Build #1847 failed on June 19 for connect-api-gateway. Jake Kim's commit 'fix: rate limit config for per-client pooling' caused 3 integration test failures: rate limit per-client burst test, token refresh rate limit test (limit too aggressive at 5/min vs expected 10/min), and connection pool isolation test (timeout). 147/150 tests passed. Jake acknowledged and promised fix within the hour.",
+      "expected_rewrite": "What build failures or CI/CD issues occurred this week?",
+      "tests": "Should surface CI notification email, tests noise document retrieval"
     }
   ]
 }

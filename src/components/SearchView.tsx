@@ -33,7 +33,7 @@ const ALL_TOOLS = [
   { key: 'slack', name: 'Slack', authUrl: null, icon: '/icons/slack.svg' },
   { key: 'notion', name: 'Notion', authUrl: null, icon: '/icons/notion.svg' },
   { key: 'jira', name: 'Jira', authUrl: null, icon: '/icons/jira.svg' },
-  { key: 'gmail', name: 'Gmail', authUrl: null, icon: '/icons/gmail.svg' },
+  { key: 'gmail', name: 'Gmail', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg' },
   { key: 'figma', name: 'Figma', authUrl: null, icon: '/icons/figma.svg' },
 ]
 
