@@ -1,6 +1,6 @@
 {
   "company": "Orion",
-  "description": "20 test queries across 5 complexity levels for a B2B SaaS developer tools company. Each query maps to expected source documents and a ground truth answer summary.",
+  "description": "30 test queries across 5 complexity levels for a B2B SaaS developer tools company. Each query maps to expected source documents and a ground truth answer summary. v2: added Q21-Q30 targeting new personas (CEO, CS, Analytics, Legal, HR), new doc types (postmortem, A/B test, DPA, API spec, change mgmt), and noise/edge case handling.",
   "queries": [
     {
       "id": "Q01",
@@ -181,6 +181,96 @@
       "expected_sources": ["doc-12-competitive-analysis"],
       "ground_truth": "Nexus raised Series C ($45M) in April. Key moves: launched AI code assistant (competing with GitHub Copilot, not directly with us), expanded into API testing (overlaps with Connect), hired ex-Stripe head of platform as CPO. Main threat: their API testing product is bundled free with their IDE — could undercut Connect's paid marketplace. Our advantage: deeper integration ecosystem and better enterprise auth story (once v3.0 ships).",
       "tests": "Competitive intel retrieval"
+    },
+    {
+      "id": "Q21",
+      "query": "What's our monthly burn rate and runway?",
+      "level": "basic",
+      "persona": "cpo",
+      "expected_sources": ["doc-21-ceo-investor-update", "doc-29-budget-vs-actuals"],
+      "ground_truth": "$520K/month burn rate. $11.4M in the bank. 22 months runway at current burn, ~18 months with Q3 hiring plan (+4 engineers at $45K/month incremental). No fundraising pressure until mid-2027. Series B conversations would start Q1 2027 if growth trajectory holds.",
+      "tests": "Financial data retrieval from CEO update + budget docs"
+    },
+    {
+      "id": "Q22",
+      "query": "Which enterprise accounts are at risk of churning?",
+      "level": "moderate",
+      "persona": "cpo",
+      "expected_sources": ["doc-22-account-health-dashboard"],
+      "ground_truth": "4 of 12 enterprise accounts are at HIGH or CRITICAL risk: (1) Atlas Corp (CRITICAL, $6,200 MRR) — active escalation over gateway timeout issues, threatened contract termination, (2) NovaTech Industries (HIGH, $3,800 MRR) — champion left the company, (3) Pinnacle Systems (HIGH, $2,200 MRR) — usage declining 3 consecutive months, (4) Verdant Labs (HIGH, $1,500 MRR) — contract expires July 31 with no renewal discussion. Total revenue at risk: $144K/yr ARR.",
+      "tests": "Structured spreadsheet data retrieval, multiple accounts with specific risk indicators"
+    },
+    {
+      "id": "Q23",
+      "query": "What happened with the API gateway outage?",
+      "level": "complex",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-27-incident-postmortem", "doc-32-incidents-slack-export"],
+      "ground_truth": "June 6, 2026, SEV-1 outage lasting 84 minutes (14:23-15:47 UTC). Root cause: API gateway connection pool exhaustion — Atlas Corp's webhook processor spawned a retry loop for 847 failed webhooks, each holding a connection with 30-second timeout, consuming ~100 of the 500 available connections. Contributing: connection pool alert was disabled during May maintenance (CONNECT-891) and never re-enabled. Mitigation: Jake increased pool from 500 to 1000. ~340 enterprise API consumers and ~1,200 free/pro users affected. 12,400 failed API calls. Atlas Corp escalated (CONNECT-743, CS-RISK-097).",
+      "tests": "Incident retrieval across postmortem doc and Slack export. Keyword-heavy (error codes, ticket IDs, timestamps)."
+    },
+    {
+      "id": "Q24",
+      "query": "What were the results of the Connect onboarding A/B test?",
+      "level": "moderate",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-25-ab-test-results"],
+      "ground_truth": "EXP-042 tested 3-step vs 5-step onboarding (n=410). Variant B (3-step) won significantly: activation rate 57.5% vs 44.8% (+28.3%, p=0.007), time-to-first-API-call 22min vs 48min (-54.2%), onboarding completion 71% vs 52.2%. 30-day retention unchanged (guardrail metric). Recommendation: ship variant B. Estimated incremental impact: ~52 additional activations/month, ~$18K/yr incremental MRR.",
+      "tests": "A/B test results retrieval with specific statistical data"
+    },
+    {
+      "id": "Q25",
+      "query": "What engineering positions are we currently hiring for?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-28-headcount-planning", "doc-21-ceo-investor-update"],
+      "ground_truth": "4 open positions: (1) REQ-2026-031: Senior Backend Engineer, Studio — 23 applicants, 4 phone screens scheduled, (2) REQ-2026-032: Senior Backend Engineer, Studio — 18 applicants, 1 on-site scheduled June 18, (3) REQ-2026-033: Mid-Level Full-Stack Engineer, Connect — posting June 16, (4) REQ-2026-034: Mid-Level Full-Stack Engineer, Connect — posting June 16. Q4 planned (not yet approved): Engineering Manager for Connect, Senior Designer, Security/Compliance Lead.",
+      "tests": "HR data retrieval. Noise trap: doc-36 (filled JD for Marcos) should NOT be surfaced as an open position."
+    },
+    {
+      "id": "Q26",
+      "query": "What's our trial-to-paid conversion rate?",
+      "level": "basic",
+      "persona": "any",
+      "expected_sources": ["doc-24-analytics-weekly"],
+      "ground_truth": "Overall signup-to-paid conversion: 8.4%. Studio: 7.6%, Connect: 9.3%. Connect outperforms Studio likely because API teams have clearer budget authority. Total: 132 conversions from 1,580 signups in the last 30 days.",
+      "tests": "Metrics retrieval from analytics slide deck (sparse format)"
+    },
+    {
+      "id": "Q27",
+      "query": "Do we have a data processing agreement for enterprise customers?",
+      "level": "moderate",
+      "persona": "any",
+      "expected_sources": ["doc-30-dpa-template"],
+      "ground_truth": "Yes, a DPA template (v2.1) exists, prepared by Morrison & Associates LLP. Covers GDPR and CCPA. Includes: data processing categories (developer accounts, API usage, auth credentials, analytics), sub-processor list (AWS, Datadog, Stripe, Amplitude, SendGrid), security measures (AES-256, TLS 1.3, VPC, SSO). Notable gaps: audit logging marked [PENDING], incident response plan [PENDING], security training [TODO]. These are committed for Q4 2026.",
+      "tests": "Legal document retrieval — very different language/style from other docs"
+    },
+    {
+      "id": "Q28",
+      "query": "What was the fix for ticket CONNECT-892?",
+      "level": "edge",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-27-incident-postmortem"],
+      "ground_truth": "CONNECT-892 is the ticket for implementing per-client connection limits in the API gateway. Assigned to Sam, due June 20. It was created as an action item from the June 6 gateway outage postmortem (INC-2026-0047), where Atlas Corp's webhook retry loop consumed ~100 of 500 gateway connections, causing 502 errors for 84 minutes.",
+      "tests": "Keyword-only data retrieval (ticket ID). Semantic search will likely fail — needs BM25 (Step 26). Expected to fail pre-hybrid-search, which validates the need for BM25."
+    },
+    {
+      "id": "Q29",
+      "query": "What did Leo say about hiring plans at the all-hands?",
+      "level": "complex",
+      "persona": "any",
+      "expected_sources": ["doc-31-allhands-june19", "doc-21-ceo-investor-update"],
+      "ground_truth": "At the June 19 all-hands, Leo confirmed: 4 open positions in Q3 (2 Studio engineers, 2 Connect engineers). Q4: 3 more planned (eng manager for Connect, senior designer, compliance lead) — not posted yet. His hiring philosophy: 'We hire slow and fire fast.' Also evaluating SOC2 approach — leaning toward compliance platform + part-time consultant (~$30K/yr) over in-house hire (~$150K/yr). On DevOps: open to adding a dedicated Connect DevOps person if Q3 hiring goes well and Meridian closes.",
+      "tests": "CEO communication retrieval from noisy all-hands notes (80% noise). Cross-references investor update."
+    },
+    {
+      "id": "Q30",
+      "query": "What's the rollback plan for the auth migration?",
+      "level": "complex",
+      "persona": "senior_pm",
+      "expected_sources": ["doc-33-change-mgmt-auth", "doc-26-api-spec-auth"],
+      "ground_truth": "Three rollback levels using LaunchDarkly feature flags: Level 1 (minor, <1% failures): route affected customers back to legacy via targeting rules, <5 min recovery. Level 2 (major, >5% failures or enterprise impacted): disable auth-v3-enabled flag globally, all traffic returns to legacy in <2 min + 30s CDN propagation. Level 3 (critical, security/data integrity): disable flag + revoke ALL v3 tokens + force re-authentication, <10 min recovery. The migration runs in 3 phases: July (new + legacy parallel), August 15 GA (legacy deprecated), November 15 (legacy removed, 90-day sunset).",
+      "tests": "Operational detail retrieval from change management plan — specific rollback procedures"
     }
   ]
 }
