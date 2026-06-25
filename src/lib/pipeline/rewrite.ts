@@ -22,9 +22,12 @@ Rules:
 Output valid JSON only, no markdown:
 {"subQueries": ["clear query 1", "optional query 2"], "reasoning": "brief explanation of changes"}`
 
-export async function rewriteQuery(rawQuery: string): Promise<RewriteResult> {
+export async function rewriteQuery(rawQuery: string, retryHint?: string): Promise<RewriteResult> {
   const today = new Date().toISOString().split('T')[0]
-  const prompt = REWRITER_PROMPT.replace('{today}', today)
+  let prompt = REWRITER_PROMPT.replace('{today}', today)
+  if (retryHint) {
+    prompt += `\n\nCRITICAL: ${retryHint}`
+  }
 
   const response = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',

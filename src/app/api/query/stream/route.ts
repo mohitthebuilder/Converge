@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, RetrievedChunk } from '@/lib/pipeline/retrieve'
 import { rewriteQuery } from '@/lib/pipeline/rewrite'
+import { validateRetrieval } from '@/lib/pipeline/validate'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
 
@@ -18,6 +19,8 @@ Rules:
 6. Match answer depth to query complexity. For simple factual lookups (a date, a name, a number), lead with a one-sentence answer. For complex questions, be thorough.
 7. Do NOT wrap your response in JSON or any other format. Just write the answer directly.
 8. Do not use emojis. Use plain text formatting only.`
+
+const MAX_RETRIES = 2
 
 interface SourceGroup {
   index: number
@@ -74,28 +77,45 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const rewrite = await rewriteQuery(query)
-  const allChunks: RetrievedChunk[] = []
-  const seenChunkIds = new Set<string>()
+  let chunks: RetrievedChunk[] = []
+  let retryCount = 0
+  let validation
+  let finalRewrite
 
-  for (const subQuery of rewrite.subQueries) {
-    const subChunks = await retrieve(subQuery)
-    for (const chunk of subChunks) {
-      if (!seenChunkIds.has(chunk.id)) {
-        seenChunkIds.add(chunk.id)
-        allChunks.push(chunk)
+  do {
+    const retryHint = retryCount > 0
+      ? `Previous search found ${chunks.length === 0 ? 'no' : 'only low-relevance'} results. Try alternative phrasings, synonyms, broader terms, or different angles on the same question.`
+      : undefined
+
+    const rewrite = await rewriteQuery(query, retryHint)
+    finalRewrite = rewrite
+
+    const allChunks: RetrievedChunk[] = []
+    const seenChunkIds = new Set<string>()
+
+    for (const subQuery of rewrite.subQueries) {
+      const subChunks = await retrieve(subQuery)
+      for (const chunk of subChunks) {
+        if (!seenChunkIds.has(chunk.id)) {
+          seenChunkIds.add(chunk.id)
+          allChunks.push(chunk)
+        }
       }
     }
-  }
 
-  allChunks.sort((a, b) => b.similarity - a.similarity)
-  const chunks = allChunks
+    allChunks.sort((a, b) => b.similarity - a.similarity)
+    chunks = allChunks
+    validation = validateRetrieval(chunks, retryCount)
+    retryCount++
+  } while (validation.needsRetry && retryCount <= MAX_RETRIES)
+
+  const encoder = new TextEncoder()
 
   if (chunks.length === 0) {
-    const encoder = new TextEncoder()
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'sources', chunks: [] })}\n\n`))
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources: [] })}\n\n`))
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: 'low', message: 'No relevant sources found' })}\n\n`))
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', content: 'No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.' })}\n\n`))
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', latencyMs: 0 })}\n\n`))
         controller.close()
@@ -116,7 +136,6 @@ export async function POST(request: NextRequest) {
     similarity: Math.round(g.bestScore * 100) / 100,
   }))
 
-  const encoder = new TextEncoder()
   const { readable, writable } = new TransformStream()
   const writer = writable.getWriter()
   const start = Date.now()
@@ -124,6 +143,7 @@ export async function POST(request: NextRequest) {
   ;(async () => {
     try {
       await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources })}\n\n`))
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: validation.confidence, message: validation.message })}\n\n`))
 
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
@@ -149,7 +169,7 @@ export async function POST(request: NextRequest) {
       if (userId) {
         const { data: queryRow } = await supabaseServer
           .from('query')
-          .insert({ user_id: userId, original_query: query, rewritten_query: rewrite.subQueries.join(' | '), live_context_on: false })
+          .insert({ user_id: userId, original_query: query, rewritten_query: finalRewrite!.subQueries.join(' | '), live_context_on: false })
           .select('id')
           .single()
 
