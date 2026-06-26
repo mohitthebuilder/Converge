@@ -14,8 +14,12 @@ export default async function PressKitPage() {
   if (!user) redirect('/login')
 
   return (
-    <div className="flex min-h-full flex-col bg-gradient-to-b from-indigo-50/30 to-white">
-      <header className="flex items-center justify-between border-b border-border/50 px-6 py-2.5">
+    <div className="relative min-h-full">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
+      </div>
+
+      <header className="relative z-10 flex items-center justify-between border-b border-border/30 bg-background/80 px-6 py-3 backdrop-blur-md">
         <a href="/" className="transition-opacity duration-150 hover:opacity-70">
           <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-7" />
         </a>
@@ -24,15 +28,15 @@ export default async function PressKitPage() {
         </a>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
+      <main className="relative z-10 mx-auto w-full max-w-2xl flex-1 px-6 py-12">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">Press kit</h1>
         <p className="mt-1 text-sm text-muted-foreground">Brand assets for Converge. All files are SVG.</p>
 
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {ASSETS.map((a) => (
-            <div key={a.src} className="rounded-xl border border-border/60 bg-background p-5 shadow-sm">
+            <div key={a.src} className="rounded-xl border border-border/60 bg-card p-5 transition-colors duration-150 hover:bg-accent/50">
               <div className="mb-3 flex items-center justify-between">
-                <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/70">{a.label}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{a.label}</p>
                 <a
                   href={a.src}
                   download={a.filename}

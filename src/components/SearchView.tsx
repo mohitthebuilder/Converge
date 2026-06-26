@@ -611,7 +611,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Ask a follow-up..."
-                      className="w-full rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 pr-10 text-sm text-foreground transition-all duration-200 placeholder:text-muted-foreground/40 focus:border-primary/30 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/10"
+                      className="w-full rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 pr-10 text-sm text-foreground transition-all duration-200 placeholder:text-muted-foreground/75 focus:border-primary/30 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/10"
                     />
                     <button
                       type="submit"
@@ -705,7 +705,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                                 {icon || <span className="text-[11px] font-semibold text-primary">?</span>}
                               </span>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[13px] font-medium text-foreground/90 transition-colors duration-150 group-hover:text-primary">{s.title}</p>
+                                <p className="truncate text-[13px] font-medium text-foreground transition-colors duration-150 group-hover:text-primary">{s.title}</p>
                                 <div className="mt-0.5 flex items-center gap-1.5">
                                   <p className="text-[11px] text-muted-foreground">{s.tool}</p>
                                 </div>

@@ -12,19 +12,35 @@ export default function BrandPage() {
   ]
 
   return (
-    <div className="min-h-full bg-white px-8 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Converge — Brand Kit</h1>
-      <p className="mt-1 text-sm text-gray-500">All logo assets. Option 2 is active.</p>
-      <div className="mt-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {assets.map((a) => (
-          <div key={a.src} className="rounded-xl border border-gray-200 bg-gray-50 p-6">
-            <p className="mb-4 text-xs font-medium text-gray-500">{a.label}</p>
-            <div className="flex items-center justify-center rounded-lg bg-white p-6">
-              <img src={a.src} alt={a.label} className="max-h-24" />
-            </div>
-          </div>
-        ))}
+    <div className="relative min-h-full">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
       </div>
+
+      <header className="relative z-10 flex items-center justify-between border-b border-border/30 bg-background/80 px-6 py-3 backdrop-blur-md">
+        <a href="/">
+          <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-7" />
+        </a>
+        <a href="/" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+          Back to search
+        </a>
+      </header>
+
+      <main className="relative z-10 mx-auto w-full max-w-2xl px-6 py-12">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Brand kit</h1>
+        <p className="mt-1 text-sm text-muted-foreground">All logo assets. Option 2 is active.</p>
+
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {assets.map((a) => (
+            <div key={a.src} className="rounded-xl border border-border/60 bg-card p-5 transition-colors duration-150 hover:bg-accent/50">
+              <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{a.label}</p>
+              <div className="flex items-center justify-center rounded-lg bg-muted/30 p-6">
+                <img src={a.src} alt={a.label} className="max-h-20" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
     </div>
   )
 }
