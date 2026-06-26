@@ -31,14 +31,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center px-6 py-12">
-      <div className="w-full max-w-[380px] text-center">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Converge</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">All your tools. One answer.</p>
+    <div className="relative flex min-h-full items-center justify-center px-6 py-12">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-[120px] left-1/2 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-[100px]" />
+        <div className="absolute -bottom-[80px] -left-[150px] h-[350px] w-[350px] rounded-full bg-primary/[0.04] blur-[80px]" />
+        <div className="absolute -bottom-[60px] -right-[150px] h-[300px] w-[300px] rounded-full bg-indigo-200/30 blur-[80px]" />
+      </div>
+
+      <div className="relative w-full max-w-[380px] text-center">
+        <div className="flex justify-center">
+          <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-14" />
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">All your tools. One answer.</p>
 
         <Button
           variant="outline"
-          className="mt-8 w-full gap-2 py-5 text-sm font-medium"
+          className="mt-8 w-full gap-2 py-5 text-sm font-medium shadow-sm transition-all duration-200 hover:shadow-md"
           onClick={handleGoogleLogin}
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24">

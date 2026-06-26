@@ -31,10 +31,10 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
     <>
       <div className="fixed inset-0 z-40 bg-black/20 md:hidden" onClick={onClose} />
 
-      <aside className="fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-gray-200 bg-gray-50 md:relative md:z-auto">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">History</h2>
-          <button onClick={onClose} className="cursor-pointer rounded-md p-1 text-gray-500 hover:bg-white">
+      <aside className="fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-border/50 bg-muted/30 md:relative md:z-auto">
+        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+          <h2 className="text-sm font-semibold text-foreground">Search history</h2>
+          <button onClick={onClose} className="cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-background">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -43,20 +43,20 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
 
         <div className="flex-1 overflow-y-auto p-2">
           {history.length === 0 ? (
-            <p className="p-4 text-center text-sm text-gray-500">No queries yet</p>
+            <p className="p-4 text-center text-sm text-muted-foreground">No queries yet</p>
           ) : (
-            <div className="divide-y divide-gray-200/70">
+            <div className="divide-y divide-border/50">
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className={`group relative flex items-start transition-colors hover:bg-white ${deletingId === item.id ? 'opacity-40' : ''}`}
+                  className={`group relative flex items-start transition-colors hover:bg-background ${deletingId === item.id ? 'opacity-40' : ''}`}
                 >
                   <button
                     onClick={() => onSelectQuery(item.id)}
                     className="w-full cursor-pointer px-3 py-2 text-left"
                   >
-                    <p className="truncate pr-6 text-sm text-gray-900">{item.original_query}</p>
-                    <p className="mt-0.5 text-xs text-gray-500">
+                    <p className="truncate pr-6 text-sm text-foreground">{item.original_query}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       {new Date(item.created_at).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
@@ -67,7 +67,7 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
                   </button>
                   {confirmId === item.id ? (
                     <div className="absolute right-1.5 top-2 flex items-center gap-0.5">
-                      <span className="mr-1 text-[10px] text-gray-500">Delete?</span>
+                      <span className="mr-1 text-[10px] text-muted-foreground">Delete?</span>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
                         className="cursor-pointer rounded p-0.5 text-emerald-500 transition-colors hover:bg-emerald-50"
@@ -90,7 +90,7 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }}
-                      className="absolute right-2 top-2.5 cursor-pointer rounded p-0.5 text-gray-400 opacity-0 transition-all hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100"
+                      className="absolute right-2 top-2.5 cursor-pointer rounded p-0.5 text-muted-foreground/50 opacity-0 transition-all hover:bg-muted hover:text-foreground group-hover:opacity-100"
                       title="Delete"
                     >
                       <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

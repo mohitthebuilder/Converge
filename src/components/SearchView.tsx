@@ -73,7 +73,9 @@ export default function SearchView({ user, connections: initialConnections, hist
   const [currentQuery, setCurrentQuery] = useState('')
   const [answerId, setAnswerId] = useState<string | null>(null)
   const [confidence, setConfidence] = useState<{ level: string; message: string } | null>(null)
-  const [placeholderIndex, setPlaceholderIndex] = useState(0)
+  const [typedPlaceholder, setTypedPlaceholder] = useState('')
+  const [phraseIdx, setPhraseIdx] = useState(0)
+  const [typePhase, setTypePhase] = useState<'typing' | 'pausing' | 'deleting'>('typing')
   const [syncStatuses, setSyncStatuses] = useState<Record<string, string>>({})
   const [localConnections, setLocalConnections] = useState<Connection[]>(initialConnections)
   const [localHistory, setLocalHistory] = useState(initialHistory)
@@ -82,8 +84,25 @@ export default function SearchView({ user, connections: initialConnections, hist
   const searchStartRef = useRef<number>(0)
 
   useEffect(() => {
-    setPlaceholderIndex(Math.floor(Math.random() * PLACEHOLDERS.length))
-  }, [])
+    if (query) return
+    const phrase = PLACEHOLDERS[phraseIdx % PLACEHOLDERS.length]
+    if (typePhase === 'typing') {
+      if (typedPlaceholder.length < phrase.length) {
+        const t = setTimeout(() => setTypedPlaceholder(phrase.slice(0, typedPlaceholder.length + 1)), 45)
+        return () => clearTimeout(t)
+      }
+      const t = setTimeout(() => setTypePhase('deleting'), 2500)
+      return () => clearTimeout(t)
+    }
+    if (typePhase === 'deleting') {
+      if (typedPlaceholder.length > 0) {
+        const t = setTimeout(() => setTypedPlaceholder(typedPlaceholder.slice(0, -1)), 20)
+        return () => clearTimeout(t)
+      }
+      setPhraseIdx(prev => prev + 1)
+      setTypePhase('typing')
+    }
+  }, [typedPlaceholder, typePhase, phraseIdx, query])
 
   useEffect(() => {
     if (!autoSync) return
@@ -306,16 +325,11 @@ export default function SearchView({ user, connections: initialConnections, hist
               </svg>
             </Button>
             <button onClick={handleNewQuery} className="cursor-pointer transition-opacity duration-150 hover:opacity-70">
-              <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-6" />
+              <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-7" />
             </button>
           </div>
 
           <div className="flex items-center gap-2">
-            {hasAnswer && (
-              <Button variant="ghost" size="sm" onClick={handleNewQuery} className="cursor-pointer text-xs text-muted-foreground transition-colors duration-150">
-                New search
-              </Button>
-            )}
             <DropdownMenu>
               <DropdownMenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full outline-none ring-2 ring-border/30 transition-all duration-150 hover:ring-primary/40">
                 <img
@@ -325,9 +339,16 @@ export default function SearchView({ user, connections: initialConnections, hist
                 />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" sideOffset={8} className="w-64">
-                <div className="px-2 py-2">
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                <div className="flex items-center gap-3 px-2 py-2">
+                  <img
+                    src={`https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
+                    alt=""
+                    className="h-9 w-9 shrink-0 rounded-full"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                  </div>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
@@ -377,8 +398,8 @@ export default function SearchView({ user, connections: initialConnections, hist
                   })}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" onSelect={() => { window.location.href = '/settings' }}>
-                  Settings
+                <DropdownMenuItem className="cursor-pointer" asChild>
+                  <a href="/press-kit">Press kit</a>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer" variant="destructive" onSelect={handleLogout}>
                   Sign out
@@ -409,14 +430,24 @@ export default function SearchView({ user, connections: initialConnections, hist
         ))}
 
         {/* Main content */}
-        <main className={`flex flex-1 flex-col items-center ${hasAnswer ? 'pt-0' : 'justify-center'} overflow-y-auto`}>
-          <div className={`w-full ${hasAnswer ? 'max-w-[720px] px-8' : 'max-w-[580px] px-6'}`}>
+        <main className={`relative flex flex-1 flex-col items-center ${hasAnswer ? 'pt-0' : 'justify-center'} overflow-y-auto`}>
+
+          {/* Background depth layers */}
+          {!hasAnswer && (
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
+              <div className="absolute -top-[120px] left-1/2 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-[100px]" />
+              <div className="absolute -bottom-[80px] -left-[150px] h-[350px] w-[350px] rounded-full bg-primary/[0.04] blur-[80px]" />
+              <div className="absolute -bottom-[60px] -right-[150px] h-[300px] w-[300px] rounded-full bg-indigo-200/30 blur-[80px]" />
+            </div>
+          )}
+
+          <div className={`relative w-full ${hasAnswer ? 'max-w-[720px] px-8' : 'max-w-[580px] px-6'}`}>
 
             {/* Empty state */}
             {!hasAnswer && (
               <div className="mb-8">
                 <div className="mb-3 flex justify-center">
-                  <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-12" />
+                  <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-16" />
                 </div>
                 <p className="mb-10 text-center text-[15px] text-muted-foreground">
                   All your tools. One answer.
@@ -428,8 +459,8 @@ export default function SearchView({ user, connections: initialConnections, hist
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder={PLACEHOLDERS[placeholderIndex]}
-                    className="w-full rounded-2xl border border-border bg-muted/40 px-6 py-4 pr-14 text-[15px] text-foreground shadow-sm transition-all duration-200 placeholder:text-muted-foreground/50 focus:border-primary/30 focus:bg-background focus:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/10"
+                    placeholder={typedPlaceholder}
+                    className="w-full rounded-2xl border border-border/80 bg-background px-6 py-4 pr-14 text-[15px] text-foreground shadow-md transition-all duration-300 placeholder:text-muted-foreground/40 focus:border-primary/40 focus:shadow-lg focus:shadow-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/10"
                   />
                   <button
                     type="submit"
@@ -442,12 +473,12 @@ export default function SearchView({ user, connections: initialConnections, hist
                   </button>
                 </form>
 
-                <p className="mt-5 text-center text-[13px] text-muted-foreground/50">
+                <p className="mt-5 text-center text-[13px] text-muted-foreground">
                   Search across your connected tools. Get answers with cited sources.
                 </p>
 
                 <div className="mt-12">
-                  <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-widest text-muted-foreground/40">
+                  <p className="mb-3 text-center text-[11px] font-medium uppercase tracking-widest text-muted-foreground/70">
                     Your tools
                   </p>
                   <div className="mx-auto grid w-fit grid-cols-3 gap-3">
@@ -469,44 +500,55 @@ export default function SearchView({ user, connections: initialConnections, hist
                           key={tool.key}
                           href={status === 'disconnected' && tool.authUrl ? tool.authUrl : '#'}
                           onClick={handleToolClick}
-                          className={`relative flex w-[120px] cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-xs font-medium transition-all duration-150 ${
+                          className={`relative flex w-[120px] cursor-pointer flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-xs font-medium shadow-sm transition-all duration-200 ${
                             status === 'live'
-                              ? 'border-emerald-300 bg-emerald-50/80 text-foreground hover:border-emerald-400 hover:bg-emerald-50'
+                              ? 'border-emerald-300 bg-emerald-50/80 text-foreground hover:border-emerald-400 hover:shadow-md'
                               : status === 'syncing'
                               ? 'border-blue-200 bg-blue-50/50 text-foreground'
                               : status === 'unavailable'
-                              ? 'cursor-default border-border/40 bg-muted/10 text-muted-foreground/60'
-                              : 'border-border/60 bg-background text-foreground hover:border-primary/30 hover:shadow-sm'
+                              ? 'cursor-default border-border/60 bg-background text-foreground'
+                              : 'border-border/60 bg-background text-foreground hover:border-primary/30 hover:shadow-md'
                           }`}
                         >
-                          <img src={tool.icon} alt={tool.name} className={`h-5 w-5 ${status === 'unavailable' ? 'opacity-40' : ''}`} />
+                          <img src={tool.icon} alt={tool.name} className="h-5 w-5" />
                           <span className="text-center text-[11px] leading-tight">{tool.name}</span>
 
-                          {/* Status indicator — fixed position top-right */}
+                          {/* Status badge pill */}
                           <span className="absolute right-1.5 top-1.5">
                             {status === 'live' && !disconnectConfirm && (
-                              <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[8px] font-semibold text-emerald-700">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                </span>
+                                Live
                               </span>
                             )}
                             {status === 'live' && disconnectConfirm === tool.key && (
-                              <span className="inline-flex h-2 w-2 rounded-full bg-red-500" />
+                              <span className="inline-flex items-center rounded-full bg-red-50 px-1.5 py-0.5 text-[8px] font-semibold text-red-600">
+                                Disconnect?
+                              </span>
                             )}
                             {isSyncing && (
-                              <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-1.5 py-0.5 text-[8px] font-semibold text-blue-700">
+                                <svg className="h-2 w-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                Syncing
                               </span>
                             )}
                             {status === 'disconnected' && (
-                              <span className="inline-flex h-2 w-2 rounded-full bg-red-400/60" />
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">
+                                Connect
+                              </span>
+                            )}
+                            {status === 'unavailable' && (
+                              <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">
+                                Soon
+                              </span>
                             )}
                           </span>
-
-                          {status === 'unavailable' && (
-                            <span className="text-[9px] text-muted-foreground/50">Coming Soon</span>
-                          )}
                         </a>
                       )
                     })}
