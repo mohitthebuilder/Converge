@@ -20,12 +20,12 @@ export async function POST(request: NextRequest) {
   const docIds = docs.map(d => d.id)
 
   const ID_BATCH = 100
-  const chunks: { id: string; content: string; document: { title: string | null; source_type: string } | null }[] = []
+  const chunks: { id: string; content: string; document: { title: string | null; source_type: string; author: string | null } | null }[] = []
   for (let i = 0; i < docIds.length; i += ID_BATCH) {
     const batch = docIds.slice(i, i + ID_BATCH)
     const { data, error } = await supabaseServer
       .from('chunk')
-      .select('id, content, document:document_id(title, source_type)')
+      .select('id, content, document:document_id(title, source_type, author)')
       .in('document_id', batch)
       .is('embedding', null)
       .limit(PAGE_LIMIT)
@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
     const batch = page.slice(i, i + BATCH_SIZE)
     const texts = batch.map(c => {
       const doc = c.document
-      const prefix = doc?.title ? `[Document: ${doc.title}] ` : ''
+      const parts = [doc?.source_type, doc?.title, doc?.author].filter(Boolean)
+      const prefix = parts.length > 0 ? `[${parts.join(' | ')}] ` : ''
       return prefix + c.content
     })
 
@@ -70,7 +71,8 @@ export async function POST(request: NextRequest) {
       if (message.includes('maximum input length')) {
         for (const chunk of batch) {
           try {
-            const chunkPrefix = chunk.document?.title ? `[Document: ${chunk.document.title}] ` : ''
+            const retryParts = [chunk.document?.source_type, chunk.document?.title, chunk.document?.author].filter(Boolean)
+            const chunkPrefix = retryParts.length > 0 ? `[${retryParts.join(' | ')}] ` : ''
             const [embedding] = await embedTexts([chunkPrefix + chunk.content])
             const { error: updateError } = await supabaseServer
               .from('chunk')

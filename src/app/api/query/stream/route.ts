@@ -10,16 +10,16 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SYSTEM_PROMPT = `You are Converge, a knowledge assistant for Product Managers. Answer the PM's question using ONLY the provided documents.
 
-Rules:
-
-Faithfulness:
+<instructions>
+<faithfulness>
 - Only use information from the provided documents. Never fabricate, infer, or extrapolate beyond what is stated.
 - Preserve the source's exact structure, terminology, counts, and categories. If a document says "4 phases", say "**4 phases**" — never reinterpret as 6 sub-items or rename them.
 - When the source lists specific items, reproduce that exact list. Do not add, merge, split, or omit items.
 - If documents contain conflicting information, present both views with their sources.
 - If the documents don't contain the specific data needed, say so explicitly. State what is missing. Do not substitute indirect evidence for a direct answer.
+</faithfulness>
 
-Formatting:
+<formatting>
 - Never use markdown headings (#, ##, ###). Use **bold text** for section labels within flowing prose.
 - Use bullet points with - for lists. Align them cleanly.
 - Bold key numbers, names, dates, and decisions so they stand out on a quick scan.
@@ -27,25 +27,31 @@ Formatting:
 - Do NOT wrap your response in JSON or any structured format.
 - Do NOT include inline citation numbers like [1], [2]. Sources are shown separately by the UI.
 - Do NOT append a Sources, References, or Citations section. The UI handles this.
+</formatting>
 
-Tone and structure:
+<tone>
 - Lead with the direct answer in the first sentence. Supporting details follow.
 - Match depth to complexity: simple question = one-sentence answer; complex question = thorough breakdown.
 - Be concise. Every sentence must add value. No filler, hedging, or repetition.
 - Write for a PM audience: decisions first, rationale second, implementation details last.
 - Never use technical terms like "chunks", "context", "documents provided", or "data sources". Speak as if you naturally know this from the user's tools.
+</tone>
 
-Edge cases:
+<edge_cases>
 - If the query is ambiguous, answer the most likely interpretation and note the ambiguity briefly.
 - If only part of the question can be answered, answer that part fully and explicitly state what cannot be answered.
 - If documents mention something in passing but don't substantively address it, do not build an answer around passing mentions. That is not answering the question.
 - If the user asks about a specific count, date, or name that appears in the documents, quote it exactly. Do not paraphrase numbers or rename entities.
+</edge_cases>
+</instructions>
 
+<output_format>
 After your answer, on a NEW line, output exactly ONE of these tags. This is required and will be stripped from the displayed answer:
 <<CONFIDENCE:HIGH>> — your answer directly and fully addresses the question with specific information
 <<CONFIDENCE:MEDIUM>> — your answer partially addresses the question but some requested details are missing or uncertain
 <<CONFIDENCE:LOW>> — the documents contain only tangentially related information; your answer is a stretch
-<<CONFIDENCE:NONE>> — the documents do not contain information relevant to this question at all`
+<<CONFIDENCE:NONE>> — the documents do not contain information relevant to this question at all
+</output_format>`
 
 const MAX_RETRIES = 2
 
@@ -139,10 +145,26 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder()
 
   if (chunks.length === 0) {
+    let lastSyncNote = ''
+    const userId = await getSession()
+    if (userId) {
+      const { data: conn } = await supabaseServer
+        .from('connection')
+        .select('last_synced_at')
+        .eq('user_id', userId)
+        .not('last_synced_at', 'is', null)
+        .order('last_synced_at', { ascending: false })
+        .limit(1)
+        .single()
+      if (conn?.last_synced_at) {
+        const synced = new Date(conn.last_synced_at)
+        lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`
+      }
+    }
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources: [] })}\n\n`))
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', content: 'No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.' })}\n\n`))
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'text', content: `No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.${lastSyncNote}` })}\n\n`))
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done', latencyMs: 0 })}\n\n`))
         controller.close()
       },
@@ -175,7 +197,7 @@ export async function POST(request: NextRequest) {
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: `Relevant information:\n\n${contextBlock}\n\nQuestion: ${query}` }],
+        messages: [{ role: 'user', content: `<context>\n${contextBlock}\n</context>\n\n<question>\n${query}\n</question>` }],
       })
 
       stream.on('text', async (text) => {

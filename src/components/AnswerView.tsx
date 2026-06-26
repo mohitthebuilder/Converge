@@ -15,10 +15,15 @@ export default function AnswerView({ answer, isStreaming, query }: AnswerViewPro
         <p className="text-[15px] text-muted-foreground">
           Searching your tools for <span className="font-medium text-foreground">{query}</span>
         </p>
-        <div className="mt-4 flex items-center gap-1.5">
-          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
-          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/60 [animation-delay:150ms]" />
-          <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
+        <div className="mt-4 flex items-center gap-2.5">
+          <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-sm font-semibold tracking-wide text-transparent animate-pulse">
+            Converging
+          </span>
+          <div className="flex items-center gap-1">
+            <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0ms]" />
+            <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/60 [animation-delay:150ms]" />
+            <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary/30 [animation-delay:300ms]" />
+          </div>
         </div>
       </div>
     )
