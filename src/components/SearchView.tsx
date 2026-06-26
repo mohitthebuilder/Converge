@@ -61,6 +61,13 @@ const TOOL_LABELS: Record<string, string> = {
   google_drive: 'Google Drive',
 }
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function formatSyncDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return `Synced ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} UTC`
+}
+
 export default function SearchView({ user, connections: initialConnections, history: initialHistory, autoSync }: SearchViewProps) {
   const [query, setQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
@@ -383,16 +390,19 @@ export default function SearchView({ user, connections: initialConnections, hist
                   {localConnections.map((c) => {
                     const tool = ALL_TOOLS.find(t => t.key === c.source_type)
                     const status = getToolStatus(c.source_type)
+                    const syncedLabel = c.last_synced_at ? formatSyncDate(c.last_synced_at) : null
                     return (
                       <div key={c.source_type} className="flex items-center justify-between rounded-md px-0.5 py-1.5">
                         <div className="flex items-center gap-2">
                           {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
-                          <span className="text-sm">{tool?.name || c.source_type}</span>
+                          <div className="flex flex-col">
+                            <span className="text-sm">{tool?.name || c.source_type}</span>
+                            {status === 'live' && syncedLabel && (
+                              <span className="text-[10px] text-muted-foreground">{syncedLabel}</span>
+                            )}
+                          </div>
                           {status === 'live' && (
-                            <span
-                              className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600"
-                              title={c.last_synced_at ? `Last synced: ${new Date(c.last_synced_at).toLocaleString()}` : undefined}
-                            >
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
                               <span className="relative flex h-1.5 w-1.5">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -529,6 +539,8 @@ export default function SearchView({ user, connections: initialConnections, hist
                     {ALL_TOOLS.map(tool => {
                       const status = getToolStatus(tool.key)
                       const isSyncing = status === 'syncing'
+                      const conn = localConnections.find(c => c.source_type === tool.key)
+                      const cardSyncLabel = conn?.last_synced_at ? formatSyncDate(conn.last_synced_at) : null
 
                       function handleToolClick(e: React.MouseEvent) {
                         if (status === 'live') {
@@ -559,7 +571,9 @@ export default function SearchView({ user, connections: initialConnections, hist
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-foreground">{tool.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">{tool.desc}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {status === 'live' && cardSyncLabel ? cardSyncLabel : tool.desc}
+                            </p>
                           </div>
                           <div className="shrink-0">
                             {status === 'live' && !disconnectConfirm && (
