@@ -115,8 +115,11 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
             </div>
           ) : (
             grouped.map((group) => (
-              <div key={group.label} className="mt-1 border-t border-border/40 pt-2 first:mt-0 first:border-t-0 first:pt-0">
-                <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{group.label}</p>
+              <div key={group.label} className="mt-4 first:mt-1">
+                <div className="mb-2 flex items-center gap-2 px-2">
+                  <p className="shrink-0 text-[10px] font-semibold uppercase tracking-widest text-primary/70">{group.label}</p>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
                 <div className="space-y-0.5">
                   {group.items.map((item) => (
                     <div
@@ -127,8 +130,8 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
                         onClick={() => onSelectQuery(item.id)}
                         className="w-full cursor-pointer px-3 py-2 text-left"
                       >
-                        <p className="truncate pr-6 text-[13px] text-foreground">{item.original_query}</p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">{relativeTime(item.created_at)}</p>
+                        <p className="truncate pr-6 text-[13px] font-medium text-foreground">{item.original_query}</p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">{relativeTime(item.created_at)}</p>
                       </button>
                       {confirmId === item.id ? (
                         <div className="absolute right-2 top-2 flex items-center gap-0.5">

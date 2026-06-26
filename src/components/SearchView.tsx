@@ -340,10 +340,10 @@ export default function SearchView({ user, connections: initialConnections, hist
               variant="ghost"
               size="icon-sm"
               onClick={() => setShowSidebar(!showSidebar)}
-              className="cursor-pointer text-foreground/70 transition-colors duration-150 hover:text-foreground"
+              className="cursor-pointer text-foreground transition-colors duration-150 hover:text-primary"
             >
               <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 13h10" />
               </svg>
             </Button>
             <button onClick={handleNewQuery} className="cursor-pointer transition-opacity duration-150 hover:opacity-70">
@@ -483,7 +483,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={typedPlaceholder}
-                    className="w-full rounded-2xl border border-border/80 bg-background px-6 py-4 pr-14 text-[15px] text-foreground shadow-md transition-all duration-300 placeholder:text-muted-foreground/40 focus:border-primary/40 focus:shadow-lg focus:shadow-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/10"
+                    className="w-full rounded-2xl border border-border/80 bg-background px-6 py-4 pr-14 text-[15px] text-foreground shadow-md transition-all duration-300 placeholder:text-muted-foreground/75 focus:border-primary/40 focus:shadow-lg focus:shadow-primary/5 focus:outline-none focus:ring-2 focus:ring-primary/10"
                   />
                   <button
                     type="submit"
