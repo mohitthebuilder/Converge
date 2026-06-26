@@ -8,7 +8,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu'
 import HistorySidebar from './HistorySidebar'
 import AnswerView from './AnswerView'
@@ -80,6 +79,7 @@ export default function SearchView({ user, connections: initialConnections, hist
   const [localHistory, setLocalHistory] = useState(initialHistory)
   const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null)
   const [noResults, setNoResults] = useState(false)
+  const [showAvatar, setShowAvatar] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const searchStartRef = useRef<number>(0)
 
@@ -130,25 +130,25 @@ export default function SearchView({ user, connections: initialConnections, hist
   async function runToolSync(toolKey: string, connectionId: string, syncEndpoint: string) {
     const toolLabel = TOOL_LABELS[toolKey] || toolKey
     try {
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: `Syncing ${toolLabel}...` }))
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'syncing' }))
       const syncRes = await fetch(syncEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId }),
       })
       if (!syncRes.ok) {
-        setSyncStatuses(prev => ({ ...prev, [toolKey]: `${toolLabel} sync failed` }))
+        setSyncStatuses(prev => ({ ...prev, [toolKey]: 'failed' }))
         return
       }
 
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: `Processing ${toolLabel}...` }))
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'syncing' }))
       await fetch('/api/pipeline/chunk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId }),
       })
 
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: `Indexing ${toolLabel}...` }))
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'syncing' }))
       let hasMore = true
       while (hasMore) {
         const embedRes = await fetch('/api/pipeline/embed', {
@@ -167,7 +167,7 @@ export default function SearchView({ user, connections: initialConnections, hist
         return next
       }), 5000)
     } catch {
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: `${TOOL_LABELS[toolKey] || toolKey} sync failed` }))
+      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'failed' }))
     }
   }
 
@@ -311,7 +311,7 @@ export default function SearchView({ user, connections: initialConnections, hist
   function getToolStatus(toolKey: string): 'live' | 'syncing' | 'disconnected' | 'unavailable' {
     if (syncStatuses[toolKey]) {
       if (syncStatuses[toolKey] === 'ready') return 'live'
-      if (syncStatuses[toolKey].includes('failed')) return 'disconnected'
+      if (syncStatuses[toolKey] === 'failed') return 'disconnected'
       return 'syncing'
     }
     if (connectedKeys.has(toolKey)) return 'live'
@@ -320,7 +320,8 @@ export default function SearchView({ user, connections: initialConnections, hist
     return 'disconnected'
   }
 
-  const activeSyncs = Object.entries(syncStatuses).filter(([, v]) => v !== 'ready' && !v.includes('failed'))
+  const activeSyncs = Object.entries(syncStatuses).filter(([, v]) => v === 'syncing')
+  const failedSyncs = Object.entries(syncStatuses).filter(([, v]) => v === 'failed')
 
   return (
     <div className="flex h-full bg-gradient-to-b from-indigo-50/30 to-white">
@@ -343,7 +344,7 @@ export default function SearchView({ user, connections: initialConnections, hist
               className="cursor-pointer text-foreground transition-colors duration-150 hover:text-primary"
             >
               <svg className="h-[18px] w-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7h16M4 13h10" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h12M4 18h8" />
               </svg>
             </Button>
             <button onClick={handleNewQuery} className="cursor-pointer transition-opacity duration-150 hover:opacity-70">
@@ -355,7 +356,7 @@ export default function SearchView({ user, connections: initialConnections, hist
             <DropdownMenu>
               <DropdownMenuTrigger className="flex h-8 w-8 cursor-pointer items-center justify-center overflow-hidden rounded-full outline-none ring-2 ring-border/30 transition-all duration-150 hover:ring-primary/40">
                 <img
-                  src={`https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
+                  src={`https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
                   alt={user.name || user.email}
                   className="h-full w-full object-cover"
                 />
@@ -363,9 +364,10 @@ export default function SearchView({ user, connections: initialConnections, hist
               <DropdownMenuContent align="end" sideOffset={8} className="w-64">
                 <div className="flex items-center gap-3 px-2 py-2">
                   <img
-                    src={`https://api.dicebear.com/9.x/notionists-neutral/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
+                    src={`https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
                     alt=""
-                    className="h-9 w-9 shrink-0 rounded-full"
+                    className="h-9 w-9 shrink-0 cursor-pointer rounded-full transition-opacity hover:opacity-80"
+                    onClick={() => setShowAvatar(true)}
                   />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">{user.name}</p>
@@ -373,21 +375,24 @@ export default function SearchView({ user, connections: initialConnections, hist
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <p className="px-1.5 py-1 text-xs font-medium text-muted-foreground">Connected tools</p>
+                <div className="px-1.5 py-1">
+                  <p className="px-0.5 pb-1 text-xs font-medium text-muted-foreground">Connected tools</p>
                   {localConnections.length === 0 && (
-                    <p className="px-2 py-1 text-xs text-muted-foreground">No tools connected</p>
+                    <p className="px-0.5 py-1 text-xs text-muted-foreground">No tools connected</p>
                   )}
                   {localConnections.map((c) => {
                     const tool = ALL_TOOLS.find(t => t.key === c.source_type)
                     const status = getToolStatus(c.source_type)
                     return (
-                      <div key={c.source_type} className="flex items-center justify-between px-2 py-1.5">
+                      <div key={c.source_type} className="flex items-center justify-between rounded-md px-0.5 py-1.5">
                         <div className="flex items-center gap-2">
                           {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
                           <span className="text-sm">{tool?.name || c.source_type}</span>
                           {status === 'live' && (
-                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
+                            <span
+                              className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600"
+                              title={c.last_synced_at ? `Last synced: ${new Date(c.last_synced_at).toLocaleString()}` : undefined}
+                            >
                               <span className="relative flex h-1.5 w-1.5">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -418,12 +423,12 @@ export default function SearchView({ user, connections: initialConnections, hist
                       </div>
                     )
                   })}
-                </DropdownMenuGroup>
+                </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" asChild>
-                  <a href="/press-kit">Press kit</a>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => { window.location.href = '/press-kit' }}>
+                  Press kit
                 </DropdownMenuItem>
-                <DropdownMenuItem className="cursor-pointer" variant="destructive" onSelect={handleLogout}>
+                <DropdownMenuItem className="cursor-pointer" variant="destructive" onClick={handleLogout}>
                   Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -432,17 +437,15 @@ export default function SearchView({ user, connections: initialConnections, hist
         </header>
 
         {/* Per-tool sync banners */}
-        {activeSyncs.map(([toolKey, phase]) => (
-          <div key={toolKey} className={`flex items-center justify-center gap-2 px-4 py-1.5 text-xs ${
-            phase.includes('failed') ? 'bg-red-50 text-red-700' : 'bg-primary/5 text-primary'
-          }`}>
-            {!phase.includes('failed') && (
-              <svg className="h-3 w-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            )}
-            {phase}
+        {activeSyncs.map(([toolKey]) => (
+          <div key={toolKey} className="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs bg-primary/5 text-primary">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
+            Syncing {TOOL_LABELS[toolKey] || toolKey}
+          </div>
+        ))}
+        {failedSyncs.map(([toolKey]) => (
+          <div key={toolKey} className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs bg-red-50 text-red-700">
+            {TOOL_LABELS[toolKey] || toolKey} sync failed
           </div>
         ))}
         {Object.entries(syncStatuses).filter(([, v]) => v === 'ready').map(([toolKey]) => (
@@ -454,15 +457,17 @@ export default function SearchView({ user, connections: initialConnections, hist
         {/* Main content */}
         <main className={`relative flex flex-1 flex-col items-center ${hasAnswer ? 'pt-0' : 'justify-center'} overflow-y-auto`}>
 
-          {/* Background depth layers */}
-          {!hasAnswer && (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-              <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
-              <div className="absolute -top-[120px] left-1/2 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-[100px]" />
-              <div className="absolute -bottom-[80px] -left-[150px] h-[350px] w-[350px] rounded-full bg-primary/[0.04] blur-[80px]" />
-              <div className="absolute -bottom-[60px] -right-[150px] h-[300px] w-[300px] rounded-full bg-indigo-200/30 blur-[80px]" />
-            </div>
-          )}
+          {/* Background depth layers — always visible */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
+            {!hasAnswer && (
+              <>
+                <div className="absolute -top-[120px] left-1/2 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-[100px]" />
+                <div className="absolute -bottom-[80px] -left-[150px] h-[350px] w-[350px] rounded-full bg-primary/[0.04] blur-[80px]" />
+                <div className="absolute -bottom-[60px] -right-[150px] h-[300px] w-[300px] rounded-full bg-indigo-200/30 blur-[80px]" />
+              </>
+            )}
+          </div>
 
           <div className={`relative w-full ${hasAnswer ? 'max-w-[720px] px-8' : 'max-w-[580px] px-6'}`}>
 
@@ -664,19 +669,19 @@ export default function SearchView({ user, connections: initialConnections, hist
                   </div>
                 )}
 
-                {/* Answer */}
-                <AnswerView answer={answer} isStreaming={isSearching} query={currentQuery} />
-
-                {/* No relevant info state */}
+                {/* No relevant info — shown ABOVE answer as TLDR */}
                 {!isSearching && noResults && (
-                  <div className="mt-6 flex flex-col items-center rounded-xl border border-primary/10 bg-primary/[0.03] py-8">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                      <img src="/brand/logomark-option2.svg" alt="" className="h-7 w-7" />
+                  <div className="my-6 flex flex-col items-center rounded-xl border border-primary/10 bg-primary/[0.03] py-8">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                      <img src="/brand/logomark-option2.svg" alt="" className="h-9 w-9" />
                     </div>
                     <p className="mt-3 text-sm font-medium text-foreground">No relevant information found</p>
                     <p className="mt-1 text-xs text-muted-foreground">Try rephrasing your question or connecting more tools.</p>
                   </div>
                 )}
+
+                {/* Answer */}
+                <AnswerView answer={answer} isStreaming={isSearching} query={currentQuery} />
 
                 {/* Sources */}
                 {!isSearching && sources.length > 0 && (() => {
@@ -732,6 +737,32 @@ export default function SearchView({ user, connections: initialConnections, hist
           </div>
         </main>
       </div>
+
+      {showAvatar && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowAvatar(false)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setShowAvatar(false) }}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+        >
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={`https://api.dicebear.com/9.x/notionists/svg?seed=${encodeURIComponent(user.email)}&backgroundColor=eef2ff`}
+              alt={user.name || user.email}
+              className="h-80 w-80 rounded-2xl shadow-2xl"
+            />
+            <button
+              onClick={() => setShowAvatar(false)}
+              className="absolute -right-3 -top-3 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full bg-background shadow-md ring-1 ring-border/50 transition-colors hover:bg-muted"
+            >
+              <svg className="h-3.5 w-3.5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

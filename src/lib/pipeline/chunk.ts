@@ -1,8 +1,8 @@
 const TARGET_TOKENS = 500
-const MAX_CHUNK_TOKENS = 1500
+const MAX_CHUNK_TOKENS = 600
 const OVERLAP_TOKENS = 75
 const CHARS_PER_TOKEN = 3
-const MAX_CHUNK_CHARS = 4500
+const MAX_CHUNK_CHARS = 1800
 
 interface Chunk {
   content: string
