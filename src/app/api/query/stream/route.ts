@@ -19,10 +19,18 @@ Rules:
 6. Structure your answer for a PM audience: lead with the decision/answer, then supporting details.
 7. Match answer depth to query complexity. For simple factual lookups, lead with a one-sentence answer. For complex questions, be thorough.
 8. Be concise. Avoid filler, repetition, and unnecessary hedging. Every sentence should add value.
-9. Be structured. Use headings for multi-part answers. Always use bullet points (•) for lists, never dashes (-).
+9. Use proper markdown formatting: ## for section headings, **bold** for key terms and numbers, bullet lists with - for items. Structure multi-part answers clearly with headings.
 10. Do NOT wrap your response in JSON or any other format. Write the answer directly.
 11. Do not use emojis. Use plain text formatting only.
-12. Never use technical terms like "chunks", "context", "documents provided", or "data sources". Speak naturally as if you know this information from the user's connected tools.`
+12. Never use technical terms like "chunks", "context", "documents provided", or "data sources". Speak naturally as if you know this information from the user's connected tools.
+13. Preserve the source's own structure and terminology. If a document says "4 phases", say "4 phases" — do not reinterpret, rename, or split into sub-items. Use the exact names, counts, and categories from the source.
+14. When the source lists specific items (phases, steps, features), reproduce that exact list faithfully. Bold the count and key terms. Do not add items the source doesn't mention.
+
+After your answer, on a NEW line, output exactly ONE of these tags. This is required and will be stripped from the displayed answer:
+<<CONFIDENCE:HIGH>> — your answer directly and fully addresses the question with specific information
+<<CONFIDENCE:MEDIUM>> — your answer partially addresses the question but some requested details are missing or uncertain
+<<CONFIDENCE:LOW>> — the documents contain only tangentially related information; your answer is a stretch
+<<CONFIDENCE:NONE>> — the documents do not contain information relevant to this question at all`
 
 const MAX_RETRIES = 2
 
@@ -145,11 +153,6 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources })}\n\n`))
-      if (validation.confidence !== 'very_low') {
-        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: validation.confidence, message: validation.message })}\n\n`))
-      }
-
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
 
@@ -168,6 +171,25 @@ export async function POST(request: NextRequest) {
       await stream.finalMessage()
       const latencyMs = Date.now() - start
 
+      const confidenceMatch = fullAnswer.match(/<<CONFIDENCE:(HIGH|MEDIUM|LOW|NONE)>>/)
+      const llmConfidence = confidenceMatch ? confidenceMatch[1].toLowerCase() : null
+      const cleanAnswer = fullAnswer.replace(/\n?<<CONFIDENCE:(HIGH|MEDIUM|LOW|NONE)>>/, '').trimEnd()
+
+      await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'answer_replace', content: cleanAnswer })}\n\n`))
+
+      if (llmConfidence === 'none') {
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: 'none' })}\n\n`))
+      } else {
+        await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'sources', sources })}\n\n`))
+        if (llmConfidence === 'high') {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: 'high', message: '' })}\n\n`))
+        } else if (llmConfidence === 'medium') {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: 'medium', message: '' })}\n\n`))
+        } else if (llmConfidence === 'low') {
+          await writer.write(encoder.encode(`data: ${JSON.stringify({ type: 'confidence', level: 'low', message: '' })}\n\n`))
+        }
+      }
+
       let answerId: string | null = null
       const userId = await getSession()
       if (userId) {
@@ -182,7 +204,7 @@ export async function POST(request: NextRequest) {
             .from('answer')
             .insert({
               query_id: queryRow.id,
-              answer_text: fullAnswer,
+              answer_text: cleanAnswer,
               model_used: 'claude-sonnet-4-6',
               latency_ms: latencyMs,
             })
