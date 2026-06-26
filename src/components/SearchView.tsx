@@ -390,19 +390,16 @@ export default function SearchView({ user, connections: initialConnections, hist
                   {localConnections.map((c) => {
                     const tool = ALL_TOOLS.find(t => t.key === c.source_type)
                     const status = getToolStatus(c.source_type)
-                    const syncedLabel = c.last_synced_at ? formatSyncDate(c.last_synced_at) : null
                     return (
                       <div key={c.source_type} className="flex items-center justify-between rounded-md px-0.5 py-1.5">
                         <div className="flex items-center gap-2">
                           {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
-                          <div className="flex flex-col">
-                            <span className="text-sm">{tool?.name || c.source_type}</span>
-                            {status === 'live' && syncedLabel && (
-                              <span className="text-[10px] text-muted-foreground">{syncedLabel}</span>
-                            )}
-                          </div>
+                          <span className="text-sm">{tool?.name || c.source_type}</span>
                           {status === 'live' && (
-                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
+                            <span
+                              className="flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600"
+                              title={c.last_synced_at ? formatSyncDate(c.last_synced_at) : undefined}
+                            >
                               <span className="relative flex h-1.5 w-1.5">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -571,13 +568,14 @@ export default function SearchView({ user, connections: initialConnections, hist
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-medium text-foreground">{tool.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {status === 'live' && cardSyncLabel ? cardSyncLabel : tool.desc}
-                            </p>
+                            <p className="truncate text-xs text-muted-foreground">{tool.desc}</p>
                           </div>
                           <div className="shrink-0">
                             {status === 'live' && !disconnectConfirm && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                              <span
+                                className="inline-flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+                                title={cardSyncLabel || undefined}
+                              >
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
