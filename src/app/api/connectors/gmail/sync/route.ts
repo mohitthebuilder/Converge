@@ -101,18 +101,22 @@ interface GmailThread {
   messages: GmailMessage[]
 }
 
-function formatThread(thread: GmailThread): { subject: string; content: string; author: string } {
+function formatThread(thread: GmailThread): { subject: string; content: string; author: string; recipients: string; message_count: number } {
   const messages = thread.messages || []
   const firstMessage = messages[0]
   const subject = getHeader(firstMessage, 'Subject') || '(No subject)'
   const author = getHeader(firstMessage, 'From')
 
+  const allRecipients = new Set<string>()
   const formattedMessages = messages.map((msg) => {
     const from = getHeader(msg, 'From')
     const to = getHeader(msg, 'To')
     const cc = getHeader(msg, 'Cc')
     const date = getHeader(msg, 'Date')
     const body = extractBody(msg.payload)
+
+    if (to) to.split(',').forEach(r => allRecipients.add(r.trim().split('<')[0].trim()))
+    if (cc) cc.split(',').forEach(r => allRecipients.add(r.trim().split('<')[0].trim()))
 
     let header = `From: ${from}\nDate: ${date}`
     if (to) header += `\nTo: ${to}`
@@ -122,7 +126,8 @@ function formatThread(thread: GmailThread): { subject: string; content: string; 
   })
 
   const content = `Subject: ${subject}\n\n${formattedMessages.join('\n\n---\n\n')}`
-  return { subject, content, author }
+  const recipients = [...allRecipients].filter(Boolean).slice(0, 5).join(', ')
+  return { subject, content, author, recipients, message_count: messages.length }
 }
 
 export async function POST(request: NextRequest) {

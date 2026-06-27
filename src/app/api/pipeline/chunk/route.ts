@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   // Get all documents for this connection that haven't been chunked yet
   const { data: documents, error } = await supabaseServer
     .from('document')
-    .select('id, content, doc_type, title')
+    .select('id, content, doc_type, title, source_type, author, indexed_at')
     .eq('connection_id', connectionId)
     .not('content', 'is', null)
 
@@ -37,13 +37,35 @@ export async function POST(request: NextRequest) {
     const chunks = chunkDocument(cleaned, doc.doc_type)
     if (chunks.length === 0) continue
 
+    // Build tool-specific metadata for chunks
+    const baseMeta: Record<string, unknown> = {
+      title: doc.title,
+      doc_type: doc.doc_type,
+      source_type: doc.source_type,
+      author: doc.author,
+    }
+
+    if (doc.source_type === 'gmail') {
+      const toMatches = cleaned.match(/^To: (.+)$/gm)
+      const ccMatches = cleaned.match(/^Cc: (.+)$/gm)
+      const allRecipients = new Set<string>()
+      ;[...(toMatches || []), ...(ccMatches || [])].forEach(line => {
+        line.replace(/^(?:To|Cc): /, '').split(',').forEach(r => {
+          const name = r.trim().split('<')[0].trim()
+          if (name) allRecipients.add(name)
+        })
+      })
+      baseMeta.recipients = [...allRecipients].slice(0, 5).join(', ')
+      baseMeta.message_count = (cleaned.match(/^From: /gm) || []).length
+    }
+
     // Store chunks
     const chunkRows = chunks.map(c => ({
       document_id: doc.id,
       content: c.content,
       chunk_index: c.chunkIndex,
       token_count: c.tokenCount,
-      metadata: { title: doc.title, doc_type: doc.doc_type },
+      metadata: baseMeta,
     }))
 
     const { error: insertError } = await supabaseServer
