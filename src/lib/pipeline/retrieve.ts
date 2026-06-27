@@ -133,11 +133,16 @@ async function fetchAdjacentChunks(
   return results
 }
 
+export interface RetrievalMeta {
+  chunksPassedReranker: number
+  totalCandidates: number
+}
+
 export async function retrieve(
   query: string,
   threshold = 0.2,
   topK = MAX_CHUNKS
-): Promise<RetrievedChunk[]> {
+): Promise<{ chunks: RetrievedChunk[]; meta: RetrievalMeta }> {
   const queryEmbedding = await embedQuery(query)
 
   const [semanticResult, bm25Result] = await Promise.all([
@@ -155,11 +160,12 @@ export async function retrieve(
   const semanticChunks = semanticResult.data || []
   const bm25Chunks = bm25Result.error ? [] : (bm25Result.data || [])
 
-  if (semanticChunks.length === 0 && bm25Chunks.length === 0) return []
+  if (semanticChunks.length === 0 && bm25Chunks.length === 0) return { chunks: [], meta: { chunksPassedReranker: 0, totalCandidates: 0 } }
 
   const merged = rrfMerge(semanticChunks, bm25Chunks, CANDIDATE_COUNT)
 
   const reranked = await rerank(query, merged)
+  const chunksPassedReranker = reranked.length
 
   const adjacent = await fetchAdjacentChunks(reranked)
 
@@ -185,7 +191,7 @@ export async function retrieve(
 
   const docMap = new Map(documents?.map(d => [d.id, d]) || [])
 
-  return allChunks.map(chunk => {
+  const results = allChunks.map(chunk => {
     const doc = docMap.get(chunk.document_id)
     return {
       id: chunk.id,
@@ -199,4 +205,9 @@ export async function retrieve(
       chunkIndex: chunk.chunk_index,
     }
   })
+
+  return {
+    chunks: results,
+    meta: { chunksPassedReranker, totalCandidates: merged.length },
+  }
 }

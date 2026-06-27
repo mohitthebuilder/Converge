@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { retrieve, RetrievedChunk } from '@/lib/pipeline/retrieve'
+import { retrieve, RetrievedChunk, RetrievalMeta } from '@/lib/pipeline/retrieve'
 import { rewriteQuery } from '@/lib/pipeline/rewrite'
 import { validateRetrieval } from '@/lib/pipeline/validate'
 import { supabaseServer } from '@/lib/db/supabase-server'
@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
   let retryCount = 0
   let validation
   let finalRewrite
+  let retrievalMeta: RetrievalMeta = { chunksPassedReranker: 0, totalCandidates: 0 }
 
   do {
     const retryHint = retryCount > 0
@@ -125,10 +126,14 @@ export async function POST(request: NextRequest) {
 
     const allChunks: RetrievedChunk[] = []
     const seenChunkIds = new Set<string>()
+    let totalReranked = 0
+    let totalCandidates = 0
 
     for (const subQuery of rewrite.subQueries) {
-      const subChunks = await retrieve(subQuery)
-      for (const chunk of subChunks) {
+      const result = await retrieve(subQuery)
+      totalReranked += result.meta.chunksPassedReranker
+      totalCandidates += result.meta.totalCandidates
+      for (const chunk of result.chunks) {
         if (!seenChunkIds.has(chunk.id)) {
           seenChunkIds.add(chunk.id)
           allChunks.push(chunk)
@@ -138,6 +143,7 @@ export async function POST(request: NextRequest) {
 
     allChunks.sort((a, b) => b.similarity - a.similarity)
     chunks = allChunks
+    retrievalMeta = { chunksPassedReranker: totalReranked, totalCandidates }
     validation = validateRetrieval(chunks, retryCount)
     retryCount++
   } while (validation.needsRetry && retryCount <= MAX_RETRIES)
@@ -193,11 +199,13 @@ export async function POST(request: NextRequest) {
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
 
+      const retrievalSignal = `<retrieval_quality>\n${retrievalMeta.chunksPassedReranker} chunks passed reranker out of ${retrievalMeta.totalCandidates} candidates. ${chunks.length} total chunks (including adjacent context) from ${sourceGroups.length} sources.\nIf few chunks passed reranker relative to candidates, retrieval confidence is lower — factor this into your confidence tag.\n</retrieval_quality>`
+
       const stream = anthropic.messages.stream({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: `<context>\n${contextBlock}\n</context>\n\n<question>\n${query}\n</question>` }],
+        messages: [{ role: 'user', content: `${retrievalSignal}\n\n<context>\n${contextBlock}\n</context>\n\n<question>\n${query}\n</question>` }],
       })
 
       stream.on('text', async (text) => {

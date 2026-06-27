@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Query is required' }, { status: 400 })
   }
 
-  const chunks = await retrieve(query)
+  const { chunks } = await retrieve(query)
 
   return NextResponse.json({
     query,

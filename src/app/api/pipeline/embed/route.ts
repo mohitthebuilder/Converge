@@ -13,9 +13,17 @@ interface ChunkDoc {
   indexed_at: string | null
 }
 
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unknown> | null): string {
   if (!doc) return ''
 
+  const date = formatDate(doc.indexed_at)
   const st = doc.source_type
   if (st === 'google_drive') {
     const mimeLabel = doc.doc_type?.includes('spreadsheet') ? 'spreadsheet'
@@ -24,7 +32,7 @@ function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unk
       : doc.doc_type?.includes('wordprocessingml') ? 'docx'
       : doc.doc_type?.includes('text/plain') ? 'txt'
       : 'document'
-    const parts = ['google_drive', mimeLabel, doc.title, doc.author ? `by ${doc.author}` : null].filter(Boolean)
+    const parts = ['google_drive', mimeLabel, doc.title, doc.author ? `by ${doc.author}` : null, date].filter(Boolean)
     return `[${parts.join(' | ')}] `
   }
 
@@ -37,6 +45,7 @@ function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unk
       doc.author ? `from ${doc.author}` : null,
       recipients ? `to ${recipients}` : null,
       msgCount ? `thread with ${msgCount} messages` : null,
+      date,
     ].filter(Boolean)
     return `[${parts.join(' | ')}] `
   }
@@ -49,6 +58,7 @@ function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unk
       'slack',
       channel ? `#${channel}` : null,
       username ? `@${username}` : null,
+      date,
       replyContext || null,
     ].filter(Boolean)
     return `[${parts.join(' | ')}] `
@@ -64,11 +74,12 @@ function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unk
       chunkMeta?.assignee ? `assignee: ${chunkMeta.assignee}` : null,
       chunkMeta?.priority ? `priority: ${chunkMeta.priority}` : null,
       chunkMeta?.sprint ? `sprint: ${chunkMeta.sprint}` : null,
+      date,
     ].filter(Boolean)
     return `[${parts.join(' | ')}] `
   }
 
-  const parts = [doc.source_type, doc.title, doc.author].filter(Boolean)
+  const parts = [doc.source_type, doc.title, doc.author, date].filter(Boolean)
   return parts.length > 0 ? `[${parts.join(' | ')}] ` : ''
 }
 
