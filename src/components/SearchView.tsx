@@ -65,7 +65,11 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 function formatSyncDate(dateStr: string): string {
   const d = new Date(dateStr)
-  return `Synced ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')} UTC`
+  const ist = new Date(d.getTime() + (5 * 60 + 30) * 60 * 1000)
+  const h = ist.getUTCHours()
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `Last synced ${MONTHS[ist.getUTCMonth()]} ${ist.getUTCDate()}, ${h12}:${String(ist.getUTCMinutes()).padStart(2,'0')} ${ampm} IST`
 }
 
 export default function SearchView({ user, connections: initialConnections, history: initialHistory, autoSync }: SearchViewProps) {
@@ -396,10 +400,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                           {tool && <img src={tool.icon} alt={tool.name} className="h-3.5 w-3.5" />}
                           <span className="text-sm">{tool?.name || c.source_type}</span>
                           {status === 'live' && (
-                            <span
-                              className="flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600"
-                              title={c.last_synced_at ? formatSyncDate(c.last_synced_at) : undefined}
-                            >
+                            <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-emerald-600">
                               <span className="relative flex h-1.5 w-1.5">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                 <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -570,17 +571,18 @@ export default function SearchView({ user, connections: initialConnections, hist
                             <p className="text-sm font-medium text-foreground">{tool.name}</p>
                             <p className="truncate text-xs text-muted-foreground">{tool.desc}</p>
                           </div>
-                          <div className="shrink-0">
+                          <div className="shrink-0 overflow-visible">
                             {status === 'live' && !disconnectConfirm && (
-                              <span
-                                className="inline-flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
-                                title={cardSyncLabel || undefined}
-                              >
+                              <span className="group/sync relative inline-flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                 </span>
                                 Live
+                                <span className="pointer-events-none absolute bottom-full right-0 z-[100] mb-2 hidden whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-[10px] font-normal normal-case tracking-normal text-background shadow-lg group-hover/sync:block">
+                                  {cardSyncLabel || 'Last synced: unknown'}
+                                  <span className="absolute -bottom-1 right-3 h-2 w-2 rotate-45 bg-foreground" />
+                                </span>
                               </span>
                             )}
                             {status === 'live' && disconnectConfirm === tool.key && (

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 const inter = Inter({
@@ -22,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`h-full ${inter.variable}`}>
-      <body className="h-full font-sans antialiased">{children}</body>
+      <body className="h-full font-sans antialiased"><TooltipProvider delay={200}>{children}</TooltipProvider></body>
     </html>
   )
 }
