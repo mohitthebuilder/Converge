@@ -179,7 +179,6 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (existing?.content_hash !== contentHash) {
-        const sprintField = issue.fields.sprint as { name: string } | null | undefined
         await supabaseServer
           .from('document')
           .upsert(
@@ -194,15 +193,6 @@ export async function POST(request: NextRequest) {
               doc_type: 'jira_issue',
               content_hash: contentHash,
               indexed_at: issue.fields.updated,
-              metadata: {
-                issue_key: issue.key,
-                issue_type: issue.fields.issuetype.name,
-                status: issue.fields.status.name,
-                project: issue.fields.project.key,
-                assignee: issue.fields.assignee?.displayName || null,
-                priority: issue.fields.priority?.name || null,
-                sprint: sprintField?.name || null,
-              },
             },
             { onConflict: 'connection_id,source_id' }
           )
