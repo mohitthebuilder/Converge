@@ -246,6 +246,8 @@ export default function SearchView({ user, connections: initialConnections, hist
             setAnswer((prev) => prev + data.content)
           } else if (data.type === 'done') {
             setLatencyMs(Date.now() - searchStartRef.current)
+            setIsSearching(false)
+          } else if (data.type === 'answer_id') {
             if (data.answerId) setAnswerId(data.answerId)
           }
         }

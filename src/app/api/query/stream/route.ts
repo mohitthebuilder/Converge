@@ -111,20 +111,47 @@ export async function POST(request: NextRequest) {
     })
   }
 
+  const userId = await getSession()
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const encoder = new TextEncoder()
   const { readable, writable } = new TransformStream()
   const writer = writable.getWriter()
   const start = Date.now()
+  const t = (label: string) => console.log(`[TIMING] ${label}: ${Date.now() - start}ms`)
 
   ;(async () => {
     try {
-      // ── Retrieval phase (single pass — retries removed for latency) ──
-      const rewrite = await rewriteQuery(query)
-      const finalRewrite = rewrite
+      // ── Auth scope + rewrite in parallel (auth hidden behind rewrite time) ──
+      const [userDocIds, rewrite] = await Promise.all([
+        (async () => {
+          const { data: conns } = await supabaseServer
+            .from('connection')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('status', 'active')
+          const connIds = conns?.map(c => c.id) || []
+          if (connIds.length === 0) return new Set<string>()
+          const { data: docs } = await supabaseServer
+            .from('document')
+            .select('id')
+            .in('connection_id', connIds)
+          return new Set(docs?.map(d => d.id) || [])
+        })(),
+        rewriteQuery(query),
+      ])
+      t('auth-scope+rewrite')
 
+      // ── Retrieval phase ──
       const subResults = await Promise.all(
-        rewrite.subQueries.map(subQuery => retrieve(subQuery))
+        rewrite.subQueries.map(subQuery => retrieve(subQuery, 0.2, 10, userDocIds))
       )
+      t('retrieval')
 
       const seenChunkIds = new Set<string>()
       const allChunks: RetrievedChunk[] = []
@@ -149,20 +176,17 @@ export async function POST(request: NextRequest) {
       // ── No results ──
       if (chunks.length === 0) {
         let lastSyncNote = ''
-        const userId = await getSession()
-        if (userId) {
-          const { data: conn } = await supabaseServer
-            .from('connection')
-            .select('last_synced_at')
-            .eq('user_id', userId)
-            .not('last_synced_at', 'is', null)
-            .order('last_synced_at', { ascending: false })
-            .limit(1)
-            .single()
-          if (conn?.last_synced_at) {
-            const synced = new Date(conn.last_synced_at)
-            lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`
-          }
+        const { data: conn } = await supabaseServer
+          .from('connection')
+          .select('last_synced_at')
+          .eq('user_id', userId)
+          .not('last_synced_at', 'is', null)
+          .order('last_synced_at', { ascending: false })
+          .limit(1)
+          .single()
+        if (conn?.last_synced_at) {
+          const synced = new Date(conn.last_synced_at)
+          lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`
         }
         await writer.write(sseEvent(encoder, { type: 'sources', sources: [] }))
         await writer.write(sseEvent(encoder, { type: 'text', content: `No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.${lastSyncNote}` }))
@@ -182,6 +206,7 @@ export async function POST(request: NextRequest) {
       }))
 
       await writer.write(sseEvent(encoder, { type: 'sources', sources }))
+      t('sources sent')
 
       // ── Model routing: Haiku for high-confidence, Sonnet for complex ──
       const bestScore = Math.max(...chunks.map(c => c.similarity))
@@ -191,6 +216,7 @@ export async function POST(request: NextRequest) {
       // ── LLM streaming ──
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
+      let firstToken = true
 
       const retrievalSignal = `<retrieval_quality>\n${retrievalMeta.chunksPassedReranker} chunks passed reranker out of ${retrievalMeta.totalCandidates} candidates. ${chunks.length} total chunks (including adjacent context) from ${sourceGroups.length} sources.\nIf few chunks passed reranker relative to candidates, retrieval confidence is lower — factor this into your confidence tag.\n</retrieval_quality>`
 
@@ -202,12 +228,14 @@ export async function POST(request: NextRequest) {
       })
 
       stream.on('text', (text) => {
+        if (firstToken) { t('first token'); firstToken = false }
         fullAnswer += text
         writer.write(sseEvent(encoder, { type: 'text', content: text }))
       })
 
       await stream.finalMessage()
       const latencyMs = Date.now() - start
+      t('stream done')
 
       // ── Confidence (tag is stripped client-side by AnswerView) ──
       const confidenceMatch = fullAnswer.match(/<<CONFIDENCE:(HIGH|MEDIUM|LOW|NONE)>>/)
@@ -220,32 +248,33 @@ export async function POST(request: NextRequest) {
         await writer.write(sseEvent(encoder, { type: 'confidence', level: llmConfidence, message: '' }))
       }
 
-      // ── Persist to DB ──
-      let answerId: string | null = null
-      const userId = await getSession()
-      if (userId) {
-        const { data: queryRow } = await supabaseServer
-          .from('query')
-          .insert({ user_id: userId, original_query: query, rewritten_query: finalRewrite!.subQueries.join(' | '), live_context_on: false })
+      // ── Fix 3: Send done event BEFORE DB persist (latency stops here for user) ──
+      await writer.write(sseEvent(encoder, { type: 'done', latencyMs }))
+      t('done sent')
+
+      // ── Persist to DB (after done event — doesn't inflate latency) ──
+      const { data: queryRow } = await supabaseServer
+        .from('query')
+        .insert({ user_id: userId, original_query: query, rewritten_query: rewrite.subQueries.join(' | '), live_context_on: false })
+        .select('id')
+        .single()
+
+      if (queryRow) {
+        const { data: answerRow } = await supabaseServer
+          .from('answer')
+          .insert({
+            query_id: queryRow.id,
+            answer_text: cleanAnswer,
+            model_used: selectedModel,
+            latency_ms: latencyMs,
+          })
           .select('id')
           .single()
-
-        if (queryRow) {
-          const { data: answerRow } = await supabaseServer
-            .from('answer')
-            .insert({
-              query_id: queryRow.id,
-              answer_text: cleanAnswer,
-              model_used: selectedModel,
-              latency_ms: latencyMs,
-            })
-            .select('id')
-            .single()
-          answerId = answerRow?.id || null
+        if (answerRow?.id) {
+          await writer.write(sseEvent(encoder, { type: 'answer_id', answerId: answerRow.id }))
         }
       }
-
-      await writer.write(sseEvent(encoder, { type: 'done', latencyMs, answerId }))
+      t('persist done')
     } catch (err) {
       await writer.write(sseEvent(encoder, { type: 'error', message: String(err) }))
     } finally {

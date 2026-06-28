@@ -91,35 +91,30 @@ async function rerank(
 async function fetchAdjacentChunks(
   matchedChunks: Array<{ id: string; document_id: string; chunk_index?: number }>,
 ): Promise<Array<{ id: string; content: string; document_id: string; chunk_index: number }>> {
-  const adjacentQueries: Array<{ docId: string; indices: number[] }> = []
   const matchedIds = new Set(matchedChunks.map(c => c.id))
 
+  const allIndices = new Map<string, Set<number>>()
   for (const chunk of matchedChunks) {
     if (chunk.chunk_index == null) continue
-    adjacentQueries.push({
-      docId: chunk.document_id,
-      indices: [chunk.chunk_index - 1, chunk.chunk_index + 1].filter(i => i >= 0),
-    })
+    const existing = allIndices.get(chunk.document_id) || new Set()
+    ;[chunk.chunk_index - 1, chunk.chunk_index + 1].filter(i => i >= 0).forEach(i => existing.add(i))
+    allIndices.set(chunk.document_id, existing)
   }
 
-  if (adjacentQueries.length === 0) return []
+  if (allIndices.size === 0) return []
 
-  const allIndices = new Map<string, Set<number>>()
-  for (const q of adjacentQueries) {
-    const existing = allIndices.get(q.docId) || new Set()
-    q.indices.forEach(i => existing.add(i))
-    allIndices.set(q.docId, existing)
-  }
+  const queryResults = await Promise.all(
+    [...allIndices.entries()].map(([docId, indices]) =>
+      supabaseServer
+        .from('chunk')
+        .select('id, content, document_id, chunk_index')
+        .eq('document_id', docId)
+        .in('chunk_index', [...indices])
+    )
+  )
 
   const results: Array<{ id: string; content: string; document_id: string; chunk_index: number }> = []
-
-  for (const [docId, indices] of allIndices) {
-    const { data } = await supabaseServer
-      .from('chunk')
-      .select('id, content, document_id, chunk_index')
-      .eq('document_id', docId)
-      .in('chunk_index', [...indices])
-
+  for (const { data } of queryResults) {
     if (data) {
       for (const row of data) {
         if (!matchedIds.has(row.id)) {
@@ -141,10 +136,15 @@ export interface RetrievalMeta {
 export async function retrieve(
   query: string,
   threshold = 0.2,
-  topK = MAX_CHUNKS
+  topK = MAX_CHUNKS,
+  filterDocIds?: Set<string>
 ): Promise<{ chunks: RetrievedChunk[]; meta: RetrievalMeta }> {
-  const queryEmbedding = await embedQuery(query)
+  const t0 = Date.now()
 
+  const queryEmbedding = await embedQuery(query)
+  console.log(`[TIMING] embed: ${Date.now() - t0}ms`)
+
+  const t1 = Date.now()
   const [semanticResult, bm25Result] = await Promise.all([
     supabaseServer.rpc('match_chunks', {
       query_embedding: queryEmbedding,
@@ -156,18 +156,35 @@ export async function retrieve(
       match_count: CANDIDATE_COUNT,
     }),
   ])
+  console.log(`[TIMING] search: ${Date.now() - t1}ms`)
 
-  const semanticChunks = semanticResult.data || []
-  const bm25Chunks = bm25Result.error ? [] : (bm25Result.data || [])
+  let semanticChunks = semanticResult.data || []
+  let bm25Chunks = bm25Result.error ? [] : (bm25Result.data || [])
+
+  if (filterDocIds && filterDocIds.size > 0) {
+    semanticChunks = semanticChunks.filter((c: { document_id: string }) => filterDocIds.has(c.document_id))
+    bm25Chunks = bm25Chunks.filter((c: { document_id: string }) => filterDocIds.has(c.document_id))
+  }
 
   if (semanticChunks.length === 0 && bm25Chunks.length === 0) return { chunks: [], meta: { chunksPassedReranker: 0, totalCandidates: 0 } }
 
   const merged = rrfMerge(semanticChunks, bm25Chunks, CANDIDATE_COUNT)
 
+  const t2 = Date.now()
   const reranked = await rerank(query, merged)
+  console.log(`[TIMING] rerank: ${Date.now() - t2}ms (${merged.length} candidates → ${reranked.length} passed)`)
   const chunksPassedReranker = reranked.length
 
-  const adjacent = await fetchAdjacentChunks(reranked)
+  const t3 = Date.now()
+  const documentIds = [...new Set(reranked.map(c => c.document_id))]
+  const [adjacent, docQueryResult] = await Promise.all([
+    fetchAdjacentChunks(reranked),
+    supabaseServer
+      .from('document')
+      .select('id, title, source_url, source_type, author')
+      .in('id', documentIds),
+  ])
+  console.log(`[TIMING] adjacent+docs: ${Date.now() - t3}ms`)
 
   const allChunks = [...reranked]
   for (const adj of adjacent) {
@@ -183,13 +200,7 @@ export async function retrieve(
     return b.score - a.score
   })
 
-  const documentIds = [...new Set(allChunks.map(c => c.document_id))]
-  const { data: documents } = await supabaseServer
-    .from('document')
-    .select('id, title, source_url, source_type, author')
-    .in('id', documentIds)
-
-  const docMap = new Map(documents?.map(d => [d.id, d]) || [])
+  const docMap = new Map(docQueryResult.data?.map(d => [d.id, d]) || [])
 
   const results = allChunks.map(chunk => {
     const doc = docMap.get(chunk.document_id)
@@ -205,6 +216,8 @@ export async function retrieve(
       chunkIndex: chunk.chunk_index,
     }
   })
+
+  console.log(`[TIMING] retrieve total: ${Date.now() - t0}ms (${results.length} chunks)`)
 
   return {
     chunks: results,
