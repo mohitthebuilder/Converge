@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, RetrievedChunk, RetrievalMeta } from '@/lib/pipeline/retrieve'
 import { rewriteQuery } from '@/lib/pipeline/rewrite'
+import { embedQuery } from '@/lib/pipeline/embed'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
 
@@ -127,8 +128,9 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      // ── Auth scope (rewrite runs in background, not on critical path) ──
+      // ── Embed + Auth scope in parallel (rewrite runs in background) ──
       const rewritePromise = rewriteQuery(query)
+      const embedPromise = embedQuery(query)
       const { data: conns } = await supabaseServer
         .from('connection')
         .select('id')
@@ -145,10 +147,11 @@ export async function POST(request: NextRequest) {
         userDocIds = new Set(docs?.map(d => d.id) || [])
         console.log(`[DIAG] documents in scope=${userDocIds.size}`)
       }
-      t('auth-scope')
+      const queryEmbedding = await embedPromise
+      t('auth-scope+embed')
 
-      // ── Retrieval with original query (no rewrite wait) ──
-      const subResults = [await retrieve(query, 0.2, 10, userDocIds)]
+      // ── Retrieval with precomputed embedding (skips embed step inside retrieve) ──
+      const subResults = [await retrieve(query, 0.2, 10, userDocIds, queryEmbedding)]
       t('retrieval')
 
       const seenChunkIds = new Set<string>()

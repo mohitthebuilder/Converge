@@ -76,20 +76,15 @@ async function rerank(
     }
 
     const data = await response.json()
-    const passed = data.results
-      .filter((r: { relevance_score: number }) => r.relevance_score >= RERANK_THRESHOLD)
+    const MIN_RERANK_RESULTS = 3
+    const all = data.results
       .map((r: { index: number; relevance_score: number }) => ({
         ...chunks[r.index],
         score: r.relevance_score,
       }))
-    if (passed.length > 0) return passed
-    // Threshold filtered everything — fall back to top 3 by Cohere score
-    return data.results
-      .slice(0, 3)
-      .map((r: { index: number; relevance_score: number }) => ({
-        ...chunks[r.index],
-        score: r.relevance_score,
-      }))
+    const passed = all.filter((r: { score: number }) => r.score >= RERANK_THRESHOLD)
+    if (passed.length >= MIN_RERANK_RESULTS) return passed
+    return all.slice(0, MIN_RERANK_RESULTS)
   } catch (err) {
     console.error('Cohere rerank error:', err)
     return chunks
@@ -145,12 +140,13 @@ export async function retrieve(
   query: string,
   threshold = 0.2,
   topK = MAX_CHUNKS,
-  filterDocIds?: Set<string>
+  filterDocIds?: Set<string>,
+  precomputedEmbedding?: number[]
 ): Promise<{ chunks: RetrievedChunk[]; meta: RetrievalMeta }> {
   const t0 = Date.now()
 
-  const queryEmbedding = await embedQuery(query)
-  console.log(`[TIMING] embed: ${Date.now() - t0}ms`)
+  const queryEmbedding = precomputedEmbedding || await embedQuery(query)
+  console.log(`[TIMING] embed: ${Date.now() - t0}ms${precomputedEmbedding ? ' (precomputed)' : ''}`)
 
   const t1 = Date.now()
   const [semanticResult, bm25Result] = await Promise.all([
