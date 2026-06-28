@@ -96,7 +96,7 @@ export default function OnboardingScreen() {
           </a>
 
           <div className="mt-4 flex flex-wrap justify-center gap-3">
-            {['Gmail', 'Slack', 'Jira'].map((tool) => (
+            {['Slack', 'Jira', 'Gmail'].map((tool) => (
               <button
                 key={tool}
                 disabled

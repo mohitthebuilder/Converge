@@ -32,6 +32,7 @@ export default function AnswerView({ answer, isStreaming, query }: AnswerViewPro
   if (!answer) return null
 
   const cleaned = answer
+    .replace(/\n?<<CONFIDENCE:(HIGH|MEDIUM|LOW|NONE)>>/, '')
     .replace(/\n*-{2,}\n*Sources?:[\s\S]*$/i, '')
     .replace(/\n*Sources?:\s*\n[\s\S]*$/i, '')
     .replace(/\[(\d+)\]/g, '')

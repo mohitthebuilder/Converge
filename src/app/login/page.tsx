@@ -13,9 +13,9 @@ const PLACEHOLDERS = [
 
 const TOOLS = [
   { name: 'Google Drive', icon: '/icons/googledrive.svg' },
-  { name: 'Gmail', icon: '/icons/gmail.svg' },
   { name: 'Slack', icon: '/icons/slack.svg' },
   { name: 'Jira', icon: '/icons/jira.svg' },
+  { name: 'Gmail', icon: '/icons/gmail.svg' },
 ]
 
 const GoogleIcon = () => (

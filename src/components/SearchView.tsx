@@ -48,9 +48,9 @@ interface SearchViewProps {
 
 const ALL_TOOLS = [
   { key: 'google_drive', name: 'Google Drive', desc: 'Docs, slides, and sheets', authUrl: '/api/auth/google-drive', icon: '/icons/googledrive.svg', comingSoon: false },
-  { key: 'gmail', name: 'Gmail', desc: 'Emails and threads', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg', comingSoon: false },
   { key: 'slack', name: 'Slack', desc: 'Messages and channels', authUrl: '/api/auth/slack', icon: '/icons/slack.svg', comingSoon: false },
   { key: 'jira', name: 'Jira', desc: 'Issues and projects', authUrl: '/api/auth/jira', icon: '/icons/jira.svg', comingSoon: false },
+  { key: 'gmail', name: 'Gmail', desc: 'Emails and threads', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg', comingSoon: false },
 ]
 
 const PLACEHOLDERS = [
@@ -241,8 +241,6 @@ export default function SearchView({ user, connections: initialConnections, hist
             } else {
               setConfidence({ level: data.level, message: data.message })
             }
-          } else if (data.type === 'answer_replace') {
-            setAnswer(data.content)
           } else if (data.type === 'text') {
             fullAnswer += data.content
             setAnswer((prev) => prev + data.content)
@@ -427,12 +425,6 @@ export default function SearchView({ user, connections: initialConnections, hist
                             </span>
                           )}
                         </div>
-                        <button
-                          onClick={() => handleDisconnect(c.source_type)}
-                          className="cursor-pointer rounded px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
-                        >
-                          Disconnect
-                        </button>
                       </div>
                     )
                   })}
