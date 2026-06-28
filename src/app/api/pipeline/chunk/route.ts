@@ -85,13 +85,13 @@ export async function POST(request: NextRequest) {
       if (projectMatch) baseMeta.project = projectMatch[1]
     }
 
-    // Store chunks
+    // Store chunks — merge table metadata if present
     const chunkRows = chunks.map(c => ({
       document_id: doc.id,
       content: c.content,
       chunk_index: c.chunkIndex,
       token_count: c.tokenCount,
-      metadata: baseMeta,
+      metadata: c.tableMeta ? { ...baseMeta, ...c.tableMeta } : baseMeta,
     }))
 
     const { error: insertError } = await supabaseServer
