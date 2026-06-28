@@ -9,6 +9,17 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { toast } from 'sonner'
 import HistorySidebar from './HistorySidebar'
 import AnswerView from './AnswerView'
 import Rating from './Rating'
@@ -90,7 +101,7 @@ export default function SearchView({ user, connections: initialConnections, hist
   const [syncStatuses, setSyncStatuses] = useState<Record<string, string>>({})
   const [localConnections, setLocalConnections] = useState<Connection[]>(initialConnections)
   const [localHistory, setLocalHistory] = useState(initialHistory)
-  const [disconnectConfirm, setDisconnectConfirm] = useState<string | null>(null)
+  const [disconnectTarget, setDisconnectTarget] = useState<string | null>(null)
   const [noResults, setNoResults] = useState(false)
   const [showAvatar, setShowAvatar] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -150,18 +161,17 @@ export default function SearchView({ user, connections: initialConnections, hist
         body: JSON.stringify({ connectionId }),
       })
       if (!syncRes.ok) {
-        setSyncStatuses(prev => ({ ...prev, [toolKey]: 'failed' }))
+        setSyncStatuses(prev => { const n = { ...prev }; delete n[toolKey]; return n })
+        toast.error(`${toolLabel} sync failed`)
         return
       }
 
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'syncing' }))
       await fetch('/api/pipeline/chunk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ connectionId }),
       })
 
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'syncing' }))
       let hasMore = true
       while (hasMore) {
         const embedRes = await fetch('/api/pipeline/embed', {
@@ -173,14 +183,12 @@ export default function SearchView({ user, connections: initialConnections, hist
         hasMore = embedResult.remaining && embedResult.remaining !== 0
       }
 
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'ready' }))
-      setTimeout(() => setSyncStatuses(prev => {
-        const next = { ...prev }
-        delete next[toolKey]
-        return next
-      }), 5000)
+      setSyncStatuses(prev => { const n = { ...prev }; delete n[toolKey]; return n })
+      setLocalConnections(prev => prev.map(c => c.source_type === toolKey ? { ...c, last_synced_at: new Date().toISOString() } : c))
+      toast.success(`${toolLabel} synced — ready to search`)
     } catch {
-      setSyncStatuses(prev => ({ ...prev, [toolKey]: 'failed' }))
+      setSyncStatuses(prev => { const n = { ...prev }; delete n[toolKey]; return n })
+      toast.error(`${toolLabel} sync failed`)
     }
   }
 
@@ -293,19 +301,21 @@ export default function SearchView({ user, connections: initialConnections, hist
     }
   }
 
-  async function handleDisconnect(sourceType: string) {
-    if (disconnectConfirm !== sourceType) {
-      setDisconnectConfirm(sourceType)
-      setTimeout(() => setDisconnectConfirm(prev => prev === sourceType ? null : prev), 4000)
-      return
-    }
-    setDisconnectConfirm(null)
+  function handleDisconnect(sourceType: string) {
+    setDisconnectTarget(sourceType)
+  }
+
+  async function confirmDisconnect() {
+    if (!disconnectTarget) return
+    const toolName = ALL_TOOLS.find(t => t.key === disconnectTarget)?.name || disconnectTarget
     await fetch('/api/connectors/disconnect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sourceType }),
+      body: JSON.stringify({ sourceType: disconnectTarget }),
     })
-    setLocalConnections(prev => prev.filter(c => c.source_type !== sourceType))
+    setLocalConnections(prev => prev.filter(c => c.source_type !== disconnectTarget))
+    setDisconnectTarget(null)
+    toast.success(`${toolName} disconnected`)
   }
 
   async function handleLogout() {
@@ -334,7 +344,6 @@ export default function SearchView({ user, connections: initialConnections, hist
   }
 
   const activeSyncs = Object.entries(syncStatuses).filter(([, v]) => v === 'syncing')
-  const failedSyncs = Object.entries(syncStatuses).filter(([, v]) => v === 'failed')
 
   return (
     <div className="flex h-full bg-gradient-to-b from-indigo-50/30 to-white">
@@ -422,13 +431,9 @@ export default function SearchView({ user, connections: initialConnections, hist
                         </div>
                         <button
                           onClick={() => handleDisconnect(c.source_type)}
-                          className={`cursor-pointer rounded px-1.5 py-0.5 text-[10px] transition-colors ${
-                            disconnectConfirm === c.source_type
-                              ? 'bg-red-100 font-medium text-red-600'
-                              : 'text-muted-foreground hover:bg-red-50 hover:text-red-500'
-                          }`}
+                          className="cursor-pointer rounded px-2 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-500"
                         >
-                          {disconnectConfirm === c.source_type ? 'Confirm?' : 'Disconnect'}
+                          Disconnect
                         </button>
                       </div>
                     )
@@ -446,21 +451,11 @@ export default function SearchView({ user, connections: initialConnections, hist
           </div>
         </header>
 
-        {/* Per-tool sync banners */}
+        {/* Syncing banner */}
         {activeSyncs.map(([toolKey]) => (
           <div key={toolKey} className="flex items-center justify-center gap-1.5 px-4 py-1.5 text-xs bg-primary/5 text-primary">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-            Syncing {TOOL_LABELS[toolKey] || toolKey}
-          </div>
-        ))}
-        {failedSyncs.map(([toolKey]) => (
-          <div key={toolKey} className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs bg-red-50 text-red-700">
-            {TOOL_LABELS[toolKey] || toolKey} sync failed
-          </div>
-        ))}
-        {Object.entries(syncStatuses).filter(([, v]) => v === 'ready').map(([toolKey]) => (
-          <div key={toolKey} className="flex items-center justify-center gap-2 px-4 py-1.5 text-xs bg-emerald-50 text-emerald-700">
-            {TOOL_LABELS[toolKey] || toolKey} synced — ready to search!
+            Syncing {TOOL_LABELS[toolKey] || toolKey}…
           </div>
         ))}
 
@@ -574,22 +569,17 @@ export default function SearchView({ user, connections: initialConnections, hist
                             <p className="truncate text-xs text-muted-foreground">{tool.desc}</p>
                           </div>
                           <div className="shrink-0 overflow-visible">
-                            {status === 'live' && !disconnectConfirm && (
-                              <span className="group/sync relative inline-flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            {status === 'live' && (
+                              <span className="group/sync relative inline-flex cursor-default items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                 </span>
                                 Live
-                                <span className="pointer-events-none absolute bottom-full right-0 z-[100] mb-2 hidden whitespace-nowrap rounded-md bg-foreground px-2.5 py-1.5 text-[10px] font-normal normal-case tracking-normal text-background shadow-lg group-hover/sync:block">
+                                <span className="pointer-events-none absolute bottom-full right-0 z-[100] mb-2 hidden whitespace-nowrap rounded-lg bg-foreground px-3 py-2 text-[11px] font-normal normal-case tracking-normal text-background shadow-lg group-hover/sync:block">
                                   {cardSyncLabel || 'Last synced: unknown'}
                                   <span className="absolute -bottom-1 right-3 h-2 w-2 rotate-45 bg-foreground" />
                                 </span>
-                              </span>
-                            )}
-                            {status === 'live' && disconnectConfirm === tool.key && (
-                              <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-600">
-                                Disconnect?
                               </span>
                             )}
                             {isSyncing && (
@@ -779,6 +769,22 @@ export default function SearchView({ user, connections: initialConnections, hist
           </div>
         </div>
       )}
+      <AlertDialog open={!!disconnectTarget} onOpenChange={(open) => { if (!open) setDisconnectTarget(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Disconnect {ALL_TOOLS.find(t => t.key === disconnectTarget)?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the connection. Search results from this tool won&apos;t be available until you reconnect.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDisconnect} className="bg-red-600 text-white hover:bg-red-700">
+              Disconnect
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
