@@ -38,8 +38,8 @@ interface SearchViewProps {
 const ALL_TOOLS = [
   { key: 'google_drive', name: 'Google Drive', desc: 'Docs, slides, and sheets', authUrl: '/api/auth/google-drive', icon: '/icons/googledrive.svg', comingSoon: false },
   { key: 'gmail', name: 'Gmail', desc: 'Emails and threads', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg', comingSoon: false },
-  { key: 'slack', name: 'Slack', desc: 'Messages and channels', authUrl: null, icon: '/icons/slack.svg', comingSoon: false },
-  { key: 'jira', name: 'Jira', desc: 'Issues and projects', authUrl: null, icon: '/icons/jira.svg', comingSoon: false },
+  { key: 'slack', name: 'Slack', desc: 'Messages and channels', authUrl: '/api/auth/slack', icon: '/icons/slack.svg', comingSoon: false },
+  { key: 'jira', name: 'Jira', desc: 'Issues and projects', authUrl: '/api/auth/jira', icon: '/icons/jira.svg', comingSoon: false },
   { key: 'notion', name: 'Notion', desc: 'Pages and databases', authUrl: null, icon: '/icons/notion.svg', comingSoon: true },
   { key: 'figma', name: 'Figma', desc: 'Designs and prototypes', authUrl: null, icon: '/icons/figma.svg', comingSoon: true },
 ]
@@ -54,6 +54,8 @@ const PLACEHOLDERS = [
 const SYNC_ENDPOINTS: Record<string, string> = {
   gmail: '/api/connectors/gmail/sync',
   google_drive: '/api/connectors/google-drive/sync',
+  slack: '/api/connectors/slack/sync',
+  jira: '/api/connectors/jira/sync',
 }
 
 const TOOL_LABELS: Record<string, string> = {

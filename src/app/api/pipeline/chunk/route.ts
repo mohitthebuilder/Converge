@@ -59,6 +59,32 @@ export async function POST(request: NextRequest) {
       baseMeta.message_count = (cleaned.match(/^From: /gm) || []).length
     }
 
+    if (doc.source_type === 'slack') {
+      baseMeta.channel = doc.title?.replace(/^#/, '')
+      baseMeta.username = doc.author
+      const replyMatch = cleaned.match(/^\[Thread reply to: "(.+?)"\]\n\n/)
+      if (replyMatch) {
+        baseMeta.reply_context = `reply to: "${replyMatch[1]}"`
+      }
+    }
+
+    if (doc.source_type === 'jira') {
+      const keyMatch = doc.title?.match(/^([A-Z]+-\d+):/)
+      if (keyMatch) baseMeta.issue_key = keyMatch[1]
+      const statusMatch = cleaned.match(/^Status: (.+)$/m)
+      if (statusMatch) baseMeta.status = statusMatch[1]
+      const typeMatch = cleaned.match(/^Type: (.+)$/m)
+      if (typeMatch) baseMeta.issue_type = typeMatch[1]
+      const priorityMatch = cleaned.match(/^Priority: (.+)$/m)
+      if (priorityMatch) baseMeta.priority = priorityMatch[1]
+      const assigneeMatch = cleaned.match(/^Assignee: (.+)$/m)
+      if (assigneeMatch) baseMeta.assignee = assigneeMatch[1]
+      const sprintMatch = cleaned.match(/^Sprint: (.+)$/m)
+      if (sprintMatch) baseMeta.sprint = sprintMatch[1]
+      const projectMatch = doc.title?.match(/^([A-Z]+)-/)
+      if (projectMatch) baseMeta.project = projectMatch[1]
+    }
+
     // Store chunks
     const chunkRows = chunks.map(c => ({
       document_id: doc.id,
