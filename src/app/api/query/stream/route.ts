@@ -136,12 +136,15 @@ export async function POST(request: NextRequest) {
             .eq('user_id', userId)
             .eq('status', 'active')
           const connIds = conns?.map(c => c.id) || []
+          console.log(`[DIAG] userId=${userId}, active connections=${connIds.length}, connIds=${JSON.stringify(connIds)}`)
           if (connIds.length === 0) return new Set<string>()
           const { data: docs } = await supabaseServer
             .from('document')
             .select('id')
             .in('connection_id', connIds)
-          return new Set(docs?.map(d => d.id) || [])
+          const docIds = new Set(docs?.map(d => d.id) || [])
+          console.log(`[DIAG] documents in scope=${docIds.size}`)
+          return docIds
         })(),
         rewriteQuery(query),
       ])
@@ -186,12 +189,12 @@ export async function POST(request: NextRequest) {
           .single()
         if (conn?.last_synced_at) {
           const synced = new Date(conn.last_synced_at)
-          lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}.`
+          lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })} IST.`
         }
+        console.log(`[DIAG] no results — userDocIds.size=${userDocIds.size}, subQueries=${JSON.stringify(rewrite.subQueries)}`)
         await writer.write(sseEvent(encoder, { type: 'sources', sources: [] }))
         await writer.write(sseEvent(encoder, { type: 'text', content: `No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.${lastSyncNote}` }))
         await writer.write(sseEvent(encoder, { type: 'done', latencyMs: 0 }))
-        await writer.close()
         return
       }
 
@@ -278,7 +281,7 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       await writer.write(sseEvent(encoder, { type: 'error', message: String(err) }))
     } finally {
-      await writer.close()
+      try { await writer.close() } catch {}
     }
   })()
 

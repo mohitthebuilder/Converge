@@ -160,13 +160,22 @@ export async function retrieve(
 
   let semanticChunks = semanticResult.data || []
   let bm25Chunks = bm25Result.error ? [] : (bm25Result.data || [])
+  if (semanticResult.error) console.log(`[DIAG] semantic search error: ${JSON.stringify(semanticResult.error)}`)
+  if (bm25Result.error) console.log(`[DIAG] bm25 search error: ${JSON.stringify(bm25Result.error)}`)
+  console.log(`[DIAG] pre-filter: semantic=${semanticChunks.length}, bm25=${bm25Chunks.length}, filterDocIds=${filterDocIds?.size ?? 'none'}`)
 
   if (filterDocIds && filterDocIds.size > 0) {
+    const preSemantic = semanticChunks.length
+    const preBm25 = bm25Chunks.length
     semanticChunks = semanticChunks.filter((c: { document_id: string }) => filterDocIds.has(c.document_id))
     bm25Chunks = bm25Chunks.filter((c: { document_id: string }) => filterDocIds.has(c.document_id))
+    console.log(`[DIAG] post-filter: semantic=${semanticChunks.length}/${preSemantic}, bm25=${bm25Chunks.length}/${preBm25}`)
   }
 
-  if (semanticChunks.length === 0 && bm25Chunks.length === 0) return { chunks: [], meta: { chunksPassedReranker: 0, totalCandidates: 0 } }
+  if (semanticChunks.length === 0 && bm25Chunks.length === 0) {
+    console.log(`[DIAG] 0 results after filter — returning empty`)
+    return { chunks: [], meta: { chunksPassedReranker: 0, totalCandidates: 0 } }
+  }
 
   const merged = rrfMerge(semanticChunks, bm25Chunks, CANDIDATE_COUNT)
 
