@@ -76,15 +76,12 @@ async function rerank(
     }
 
     const data = await response.json()
-    const MIN_RERANK_RESULTS = 3
-    const all = data.results
+    return data.results
+      .filter((r: { relevance_score: number }) => r.relevance_score >= RERANK_THRESHOLD)
       .map((r: { index: number; relevance_score: number }) => ({
         ...chunks[r.index],
         score: r.relevance_score,
       }))
-    const passed = all.filter((r: { score: number }) => r.score >= RERANK_THRESHOLD)
-    if (passed.length >= MIN_RERANK_RESULTS) return passed
-    return all.slice(0, MIN_RERANK_RESULTS)
   } catch (err) {
     console.error('Cohere rerank error:', err)
     return chunks
