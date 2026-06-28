@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, RetrievedChunk, RetrievalMeta } from '@/lib/pipeline/retrieve'
 import { rewriteQuery } from '@/lib/pipeline/rewrite'
-import { validateRetrieval } from '@/lib/pipeline/validate'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
 
@@ -52,8 +51,6 @@ After your answer, on a NEW line, output exactly ONE of these tags. This is requ
 <<CONFIDENCE:LOW>> — the documents contain only tangentially related information; your answer is a stretch
 <<CONFIDENCE:NONE>> — the documents do not contain information relevant to this question at all
 </output_format>`
-
-const MAX_RETRIES = 2
 
 interface SourceGroup {
   index: number
@@ -121,47 +118,33 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      // ── Retrieval phase ──
-      let chunks: RetrievedChunk[] = []
-      let retryCount = 0
-      let validation
-      let finalRewrite
-      let retrievalMeta: RetrievalMeta = { chunksPassedReranker: 0, totalCandidates: 0 }
+      // ── Retrieval phase (single pass — retries removed for latency) ──
+      const rewrite = await rewriteQuery(query)
+      const finalRewrite = rewrite
 
-      do {
-        const retryHint = retryCount > 0
-          ? `Previous search found ${chunks.length === 0 ? 'no' : 'only low-relevance'} results. Try alternative phrasings, synonyms, broader terms, or different angles on the same question.`
-          : undefined
+      const subResults = await Promise.all(
+        rewrite.subQueries.map(subQuery => retrieve(subQuery))
+      )
 
-        const rewrite = await rewriteQuery(query, retryHint)
-        finalRewrite = rewrite
+      const seenChunkIds = new Set<string>()
+      const allChunks: RetrievedChunk[] = []
+      let totalReranked = 0
+      let totalCandidates = 0
 
-        const subResults = await Promise.all(
-          rewrite.subQueries.map(subQuery => retrieve(subQuery))
-        )
-
-        const seenChunkIds = new Set<string>()
-        const allChunks: RetrievedChunk[] = []
-        let totalReranked = 0
-        let totalCandidates = 0
-
-        for (const result of subResults) {
-          totalReranked += result.meta.chunksPassedReranker
-          totalCandidates += result.meta.totalCandidates
-          for (const chunk of result.chunks) {
-            if (!seenChunkIds.has(chunk.id)) {
-              seenChunkIds.add(chunk.id)
-              allChunks.push(chunk)
-            }
+      for (const result of subResults) {
+        totalReranked += result.meta.chunksPassedReranker
+        totalCandidates += result.meta.totalCandidates
+        for (const chunk of result.chunks) {
+          if (!seenChunkIds.has(chunk.id)) {
+            seenChunkIds.add(chunk.id)
+            allChunks.push(chunk)
           }
         }
+      }
 
-        allChunks.sort((a, b) => b.similarity - a.similarity)
-        chunks = allChunks
-        retrievalMeta = { chunksPassedReranker: totalReranked, totalCandidates }
-        validation = validateRetrieval(chunks, retryCount)
-        retryCount++
-      } while (validation.needsRetry && retryCount <= MAX_RETRIES)
+      allChunks.sort((a, b) => b.similarity - a.similarity)
+      const chunks = allChunks
+      const retrievalMeta: RetrievalMeta = { chunksPassedReranker: totalReranked, totalCandidates }
 
       // ── No results ──
       if (chunks.length === 0) {
@@ -200,6 +183,11 @@ export async function POST(request: NextRequest) {
 
       await writer.write(sseEvent(encoder, { type: 'sources', sources }))
 
+      // ── Model routing: Haiku for high-confidence, Sonnet for complex ──
+      const bestScore = Math.max(...chunks.map(c => c.similarity))
+      const useHaiku = bestScore >= 0.5 && chunks.length >= 3
+      const selectedModel = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+
       // ── LLM streaming ──
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
@@ -207,9 +195,9 @@ export async function POST(request: NextRequest) {
       const retrievalSignal = `<retrieval_quality>\n${retrievalMeta.chunksPassedReranker} chunks passed reranker out of ${retrievalMeta.totalCandidates} candidates. ${chunks.length} total chunks (including adjacent context) from ${sourceGroups.length} sources.\nIf few chunks passed reranker relative to candidates, retrieval confidence is lower — factor this into your confidence tag.\n</retrieval_quality>`
 
       const stream = anthropic.messages.stream({
-        model: 'claude-sonnet-4-6',
+        model: selectedModel,
         max_tokens: 1000,
-        system: SYSTEM_PROMPT,
+        system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: `${retrievalSignal}\n\n<context>\n${contextBlock}\n</context>\n\n<question>\n${query}\n</question>` }],
       })
 
@@ -248,7 +236,7 @@ export async function POST(request: NextRequest) {
             .insert({
               query_id: queryRow.id,
               answer_text: cleanAnswer,
-              model_used: 'claude-sonnet-4-6',
+              model_used: selectedModel,
               latency_ms: latencyMs,
             })
             .select('id')

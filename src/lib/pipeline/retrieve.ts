@@ -53,7 +53,7 @@ async function rerank(
   chunks: Array<{ id: string; content: string; document_id: string; score: number; chunk_index?: number }>
 ): Promise<Array<{ id: string; content: string; document_id: string; score: number; chunk_index?: number }>> {
   const apiKey = process.env.COHERE_API_KEY
-  if (!apiKey || chunks.length === 0) return chunks
+  if (!apiKey || chunks.length === 0 || chunks.length <= 5) return chunks
 
   try {
     const response = await fetch('https://api.cohere.com/v2/rerank', {
