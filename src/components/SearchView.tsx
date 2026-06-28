@@ -650,22 +650,6 @@ export default function SearchView({ user, connections: initialConnections, hist
                   </div>
                 )}
 
-                {/* Confidence tag */}
-                {confidence && !isSearching && (
-                  <div className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                    confidence.level === 'high'
-                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : confidence.level === 'medium'
-                      ? 'border border-green-200 bg-green-50 text-green-700'
-                      : 'border border-amber-200 bg-amber-50 text-amber-700'
-                  }`}>
-                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${
-                      confidence.level === 'high' ? 'bg-emerald-500' : confidence.level === 'medium' ? 'bg-green-500' : 'bg-amber-500'
-                    }`} />
-                    Confidence: {confidence.level === 'high' ? 'High' : confidence.level === 'medium' ? 'Good' : 'Average'}
-                  </div>
-                )}
-
                 {/* No relevant info — shown ABOVE answer as TLDR */}
                 {!isSearching && noResults && (
                   <div className="my-6 flex flex-col items-center rounded-xl border border-primary/10 bg-primary/[0.03] py-8">
@@ -679,6 +663,22 @@ export default function SearchView({ user, connections: initialConnections, hist
 
                 {/* Answer */}
                 <AnswerView answer={answer} isStreaming={isSearching} query={currentQuery} />
+
+                {/* Confidence tag — below answer, no layout shift */}
+                {confidence && !isSearching && (
+                  <div className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    confidence.level === 'high'
+                      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : confidence.level === 'medium'
+                      ? 'border border-green-200 bg-green-50 text-green-700'
+                      : 'border border-amber-200 bg-amber-50 text-amber-700'
+                  }`}>
+                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${
+                      confidence.level === 'high' ? 'bg-emerald-500' : confidence.level === 'medium' ? 'bg-green-500' : 'bg-amber-500'
+                    }`} />
+                    Confidence: {confidence.level === 'high' ? 'High' : confidence.level === 'medium' ? 'Good' : 'Average'}
+                  </div>
+                )}
 
                 {/* Sources */}
                 {!isSearching && sources.length > 0 && (() => {
