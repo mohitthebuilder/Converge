@@ -48,6 +48,10 @@ function isSeparatorRow(line: string): boolean {
   return /^\|[\s\-:|]+\|$/.test(line.trim())
 }
 
+function isTabSeparatedRow(line: string): boolean {
+  return line.includes('\t') && line.trim().length > 0
+}
+
 function parseTableCells(row: string): string[] {
   return row.split('|').slice(1, -1).map(c => c.trim())
 }
@@ -89,6 +93,43 @@ function extractSegments(text: string): Segment[] {
 
       if (rows.length > 0) {
         segments.push({ type: 'table', title, headers, rows })
+      }
+    } else if (isTabSeparatedRow(lines[i]) && i + 1 < lines.length && isTabSeparatedRow(lines[i + 1])) {
+      const tabCount = (lines[i].match(/\t/g) || []).length
+      if (tabCount >= 2) {
+        let title: string | null = null
+        for (let j = proseLines.length - 1; j >= 0; j--) {
+          const candidate = proseLines[j].trim()
+          if (candidate) {
+            if (candidate.startsWith('#') || (candidate.length < 120 && j === proseLines.length - 1)) {
+              title = candidate.replace(/^#+\s*/, '')
+              proseLines.pop()
+            }
+            break
+          }
+        }
+
+        if (proseLines.length > 0) {
+          const content = proseLines.join('\n').trim()
+          if (content) segments.push({ type: 'prose', content })
+          proseLines = []
+        }
+
+        const headers = lines[i].split('\t').map(c => c.trim()).filter(Boolean)
+        i++
+
+        const rows: string[] = []
+        while (i < lines.length && isTabSeparatedRow(lines[i])) {
+          rows.push(lines[i].split('\t').map(c => c.trim()).filter(Boolean).join(' | '))
+          i++
+        }
+
+        if (rows.length > 0) {
+          segments.push({ type: 'table', title, headers, rows })
+        }
+      } else {
+        proseLines.push(lines[i])
+        i++
       }
     } else {
       proseLines.push(lines[i])
