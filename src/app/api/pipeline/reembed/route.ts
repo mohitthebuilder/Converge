@@ -101,13 +101,13 @@ export async function POST() {
   const ID_BATCH = 100
   for (let i = 0; i < allDocIds.length; i += ID_BATCH) {
     const batch = allDocIds.slice(i, i + ID_BATCH)
-    const { count } = await supabaseServer
+    const { data: nulledRows } = await supabaseServer
       .from('chunk')
       .update({ embedding: null })
       .in('document_id', batch)
       .not('embedding', 'is', null)
-      .select('id', { count: 'exact', head: true })
-    nulled += count || 0
+      .select('id')
+    nulled += nulledRows?.length || 0
   }
 
   // Step 2: Re-embed in pages
