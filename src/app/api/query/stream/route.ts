@@ -127,33 +127,28 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      // ── Auth scope + rewrite in parallel (auth hidden behind rewrite time) ──
-      const [userDocIds, rewrite] = await Promise.all([
-        (async () => {
-          const { data: conns } = await supabaseServer
-            .from('connection')
-            .select('id')
-            .eq('user_id', userId)
-            .eq('status', 'active')
-          const connIds = conns?.map(c => c.id) || []
-          console.log(`[DIAG] userId=${userId}, active connections=${connIds.length}, connIds=${JSON.stringify(connIds)}`)
-          if (connIds.length === 0) return new Set<string>()
-          const { data: docs } = await supabaseServer
-            .from('document')
-            .select('id')
-            .in('connection_id', connIds)
-          const docIds = new Set(docs?.map(d => d.id) || [])
-          console.log(`[DIAG] documents in scope=${docIds.size}`)
-          return docIds
-        })(),
-        rewriteQuery(query),
-      ])
-      t('auth-scope+rewrite')
+      // ── Auth scope (rewrite runs in background, not on critical path) ──
+      const rewritePromise = rewriteQuery(query)
+      const { data: conns } = await supabaseServer
+        .from('connection')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+      const connIds = conns?.map(c => c.id) || []
+      console.log(`[DIAG] userId=${userId}, active connections=${connIds.length}`)
+      let userDocIds = new Set<string>()
+      if (connIds.length > 0) {
+        const { data: docs } = await supabaseServer
+          .from('document')
+          .select('id')
+          .in('connection_id', connIds)
+        userDocIds = new Set(docs?.map(d => d.id) || [])
+        console.log(`[DIAG] documents in scope=${userDocIds.size}`)
+      }
+      t('auth-scope')
 
-      // ── Retrieval phase ──
-      const subResults = await Promise.all(
-        rewrite.subQueries.map(subQuery => retrieve(subQuery, 0.2, 10, userDocIds))
-      )
+      // ── Retrieval with original query (no rewrite wait) ──
+      const subResults = [await retrieve(query, 0.2, 10, userDocIds)]
       t('retrieval')
 
       const seenChunkIds = new Set<string>()
@@ -191,7 +186,7 @@ export async function POST(request: NextRequest) {
           const synced = new Date(conn.last_synced_at)
           lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })} IST.`
         }
-        console.log(`[DIAG] no results — userDocIds.size=${userDocIds.size}, subQueries=${JSON.stringify(rewrite.subQueries)}`)
+        console.log(`[DIAG] no results — userDocIds.size=${userDocIds.size}, query=${query}`)
         await writer.write(sseEvent(encoder, { type: 'sources', sources: [] }))
         await writer.write(sseEvent(encoder, { type: 'text', content: `No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.${lastSyncNote}` }))
         await writer.write(sseEvent(encoder, { type: 'done', latencyMs: 0 }))
@@ -256,6 +251,7 @@ export async function POST(request: NextRequest) {
       t('done sent')
 
       // ── Persist to DB (after done event — doesn't inflate latency) ──
+      const rewrite = await rewritePromise.catch(() => ({ subQueries: [query], reasoning: '' }))
       const { data: queryRow } = await supabaseServer
         .from('query')
         .insert({ user_id: userId, original_query: query, rewritten_query: rewrite.subQueries.join(' | '), live_context_on: false })

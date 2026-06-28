@@ -76,8 +76,16 @@ async function rerank(
     }
 
     const data = await response.json()
-    return data.results
+    const passed = data.results
       .filter((r: { relevance_score: number }) => r.relevance_score >= RERANK_THRESHOLD)
+      .map((r: { index: number; relevance_score: number }) => ({
+        ...chunks[r.index],
+        score: r.relevance_score,
+      }))
+    if (passed.length > 0) return passed
+    // Threshold filtered everything — fall back to top 3 by Cohere score
+    return data.results
+      .slice(0, 3)
       .map((r: { index: number; relevance_score: number }) => ({
         ...chunks[r.index],
         score: r.relevance_score,
