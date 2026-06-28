@@ -101,19 +101,27 @@ interface GmailThread {
   messages: GmailMessage[]
 }
 
-function formatThread(thread: GmailThread): { subject: string; content: string; author: string; recipients: string; message_count: number } {
+function formatThread(thread: GmailThread): { subject: string; content: string; author: string; recipients: string; message_count: number; latestDate: string | null } {
   const messages = thread.messages || []
   const firstMessage = messages[0]
   const subject = getHeader(firstMessage, 'Subject') || '(No subject)'
   const author = getHeader(firstMessage, 'From')
 
   const allRecipients = new Set<string>()
+  let latestDate: string | null = null
   const formattedMessages = messages.map((msg) => {
     const from = getHeader(msg, 'From')
     const to = getHeader(msg, 'To')
     const cc = getHeader(msg, 'Cc')
     const date = getHeader(msg, 'Date')
     const body = extractBody(msg.payload)
+
+    if (date) {
+      const parsed = new Date(date)
+      if (!isNaN(parsed.getTime()) && (!latestDate || parsed.getTime() > new Date(latestDate).getTime())) {
+        latestDate = parsed.toISOString()
+      }
+    }
 
     if (to) to.split(',').forEach(r => allRecipients.add(r.trim().split('<')[0].trim()))
     if (cc) cc.split(',').forEach(r => allRecipients.add(r.trim().split('<')[0].trim()))
@@ -127,7 +135,7 @@ function formatThread(thread: GmailThread): { subject: string; content: string; 
 
   const content = `Subject: ${subject}\n\n${formattedMessages.join('\n\n---\n\n')}`
   const recipients = [...allRecipients].filter(Boolean).slice(0, 5).join(', ')
-  return { subject, content, author, recipients, message_count: messages.length }
+  return { subject, content, author, recipients, message_count: messages.length, latestDate }
 }
 
 export async function POST(request: NextRequest) {
@@ -176,7 +184,7 @@ export async function POST(request: NextRequest) {
     )
     const thread: GmailThread = await threadResponse.json()
 
-    const { subject, content, author } = formatThread(thread)
+    const { subject, content, author, latestDate } = formatThread(thread)
     if (!content.trim()) continue
 
     const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
@@ -203,6 +211,7 @@ export async function POST(request: NextRequest) {
           author,
           doc_type: 'email_thread',
           content_hash: contentHash,
+          indexed_at: latestDate || new Date().toISOString(),
         },
         { onConflict: 'connection_id,source_id' }
       )

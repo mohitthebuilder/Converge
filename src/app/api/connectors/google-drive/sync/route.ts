@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
   const accessToken = await getAccessToken(connection)
 
   // List all supported files
-  const allFiles: Array<{ id: string; name: string; mimeType: string; webViewLink: string; owners?: Array<{ displayName: string }> }> = []
+  const allFiles: Array<{ id: string; name: string; mimeType: string; webViewLink: string; modifiedTime?: string; owners?: Array<{ displayName: string }> }> = []
   let pageToken: string | undefined
 
   const supportedTypes = [...Object.keys(EXPORTABLE_TYPES), ...DOWNLOADABLE_TYPES]
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
   do {
     const params = new URLSearchParams({
       q: mimeQuery,
-      fields: 'nextPageToken,files(id,name,mimeType,webViewLink,owners)',
+      fields: 'nextPageToken,files(id,name,mimeType,webViewLink,modifiedTime,owners)',
       pageSize: '100',
     })
     if (pageToken) params.set('pageToken', pageToken)
@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
           author: file.owners?.[0]?.displayName || null,
           doc_type: file.mimeType,
           content_hash: contentHash,
+          indexed_at: file.modifiedTime || new Date().toISOString(),
         },
         { onConflict: 'connection_id,source_id' }
       )
