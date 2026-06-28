@@ -24,11 +24,18 @@ const PLACEHOLDER_QUERIES = [
 
 export default function OnboardingScreen() {
   return (
-    <div className="flex h-full flex-col items-center bg-white">
-      <div className="w-full max-w-3xl px-8 pt-16 pb-8">
+    <div className="relative flex h-full flex-col items-center overflow-hidden bg-white">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
+        <div className="absolute -top-[250px] left-1/2 h-[800px] w-[900px] -translate-x-1/2 rounded-full bg-indigo-100/50 blur-[150px]" />
+        <div className="absolute -bottom-[150px] -left-[100px] h-[600px] w-[600px] rounded-full bg-indigo-50/40 blur-[120px]" />
+        <div className="absolute -bottom-[120px] -right-[100px] h-[550px] w-[550px] rounded-full bg-indigo-200/25 blur-[120px]" />
+        <div className="absolute left-1/2 top-1/2 h-[400px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.02] blur-[100px]" />
+      </div>
+      <div className="relative w-full max-w-3xl px-8 pt-16 pb-8">
         <div className="mb-12 text-center">
           <h1 className="text-2xl font-semibold text-gray-900">Converge</h1>
-          <p className="mt-1 text-sm text-gray-500">All your tools. One answer.</p>
+          <p className="mt-1 text-sm text-gray-500">All your PM tools. One AI-powered answer.</p>
         </div>
 
         {/* Visual search bar (disabled) */}
@@ -89,7 +96,7 @@ export default function OnboardingScreen() {
           </a>
 
           <div className="mt-4 flex flex-wrap justify-center gap-3">
-            {['Slack', 'Notion', 'Jira', 'Gmail', 'Figma'].map((tool) => (
+            {['Gmail', 'Slack', 'Jira'].map((tool) => (
               <button
                 key={tool}
                 disabled
@@ -99,7 +106,6 @@ export default function OnboardingScreen() {
               </button>
             ))}
           </div>
-          <p className="mt-3 text-xs text-gray-400">More integrations coming soon</p>
         </div>
       </div>
     </div>

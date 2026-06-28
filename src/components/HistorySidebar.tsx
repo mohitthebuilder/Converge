@@ -83,9 +83,9 @@ export default function HistorySidebar({ history, show, onClose, onSelectQuery, 
       <aside className={`fixed left-0 top-0 z-50 flex h-full w-72 flex-col border-r border-border/50 bg-background/90 shadow-xl backdrop-blur-xl transition-transform duration-200 ease-out ${show ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-4 pb-2 pt-3">
           <h2 className="text-[13px] font-semibold text-foreground">Search history</h2>
-          <button onClick={onClose} className="cursor-pointer rounded-lg p-1.5 text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground">
+          <button onClick={onClose} className="cursor-pointer rounded-lg p-1.5 text-foreground/70 transition-colors duration-150 hover:bg-muted hover:text-foreground">
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>

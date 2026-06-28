@@ -10,7 +10,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Converge — All your tools. One answer.',
+  title: 'Converge — All your PM tools. One AI-powered answer.',
   description: 'AI-powered knowledge search for Product Managers',
   icons: {
     icon: '/favicon.svg',

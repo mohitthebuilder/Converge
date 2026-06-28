@@ -16,8 +16,6 @@ const TOOLS = [
   { name: 'Gmail', icon: '/icons/gmail.svg' },
   { name: 'Slack', icon: '/icons/slack.svg' },
   { name: 'Jira', icon: '/icons/jira.svg' },
-  { name: 'Notion', icon: '/icons/notion.svg', soon: true },
-  { name: 'Figma', icon: '/icons/figma.svg', soon: true },
 ]
 
 const GoogleIcon = () => (
@@ -82,9 +80,10 @@ export default function LoginPage() {
     <div className="relative min-h-full overflow-y-auto">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
-        <div className="absolute -top-[120px] left-1/2 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-[100px]" />
-        <div className="absolute -bottom-[80px] -left-[150px] h-[350px] w-[350px] rounded-full bg-primary/[0.04] blur-[80px]" />
-        <div className="absolute -bottom-[60px] -right-[150px] h-[300px] w-[300px] rounded-full bg-indigo-200/30 blur-[80px]" />
+        <div className="absolute -top-[250px] left-1/2 h-[800px] w-[900px] -translate-x-1/2 rounded-full bg-indigo-100/50 blur-[150px]" />
+        <div className="absolute -bottom-[150px] -left-[100px] h-[600px] w-[600px] rounded-full bg-indigo-50/40 blur-[120px]" />
+        <div className="absolute -bottom-[120px] -right-[100px] h-[550px] w-[550px] rounded-full bg-indigo-200/25 blur-[120px]" />
+        <div className="absolute left-1/2 top-1/2 h-[400px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.02] blur-[100px]" />
       </div>
 
       {/* Header */}
@@ -164,11 +163,6 @@ export default function LoginPage() {
               <div key={tool.name} className="flex w-16 flex-col items-center">
                 <img src={tool.icon} alt={tool.name} className="h-6 w-6" />
                 <span className="mt-1.5 text-[11px] text-muted-foreground">{tool.name}</span>
-                {tool.soon ? (
-                  <span className="mt-1 rounded-full bg-muted px-1.5 py-0.5 text-[8px] font-medium text-muted-foreground">Soon</span>
-                ) : (
-                  <span className="mt-1 h-[14px]" />
-                )}
               </div>
             ))}
           </div>

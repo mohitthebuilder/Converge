@@ -51,8 +51,6 @@ const ALL_TOOLS = [
   { key: 'gmail', name: 'Gmail', desc: 'Emails and threads', authUrl: '/api/auth/gmail', icon: '/icons/gmail.svg', comingSoon: false },
   { key: 'slack', name: 'Slack', desc: 'Messages and channels', authUrl: '/api/auth/slack', icon: '/icons/slack.svg', comingSoon: false },
   { key: 'jira', name: 'Jira', desc: 'Issues and projects', authUrl: '/api/auth/jira', icon: '/icons/jira.svg', comingSoon: false },
-  { key: 'notion', name: 'Notion', desc: 'Pages and databases', authUrl: null, icon: '/icons/notion.svg', comingSoon: true },
-  { key: 'figma', name: 'Figma', desc: 'Designs and prototypes', authUrl: null, icon: '/icons/figma.svg', comingSoon: true },
 ]
 
 const PLACEHOLDERS = [
@@ -467,9 +465,10 @@ export default function SearchView({ user, connections: initialConnections, hist
             <div className="absolute inset-0 [background-image:radial-gradient(circle,_#4F46E5_0.5px,_transparent_0.5px)] [background-size:24px_24px] opacity-[0.03]" />
             {!hasAnswer && (
               <>
-                <div className="absolute -top-[120px] left-1/2 h-[500px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/60 blur-[100px]" />
-                <div className="absolute -bottom-[80px] -left-[150px] h-[350px] w-[350px] rounded-full bg-primary/[0.04] blur-[80px]" />
-                <div className="absolute -bottom-[60px] -right-[150px] h-[300px] w-[300px] rounded-full bg-indigo-200/30 blur-[80px]" />
+                <div className="absolute -top-[250px] left-1/2 h-[800px] w-[900px] -translate-x-1/2 rounded-full bg-indigo-100/50 blur-[150px]" />
+                <div className="absolute -bottom-[150px] -left-[100px] h-[600px] w-[600px] rounded-full bg-indigo-50/40 blur-[120px]" />
+                <div className="absolute -bottom-[120px] -right-[100px] h-[550px] w-[550px] rounded-full bg-indigo-200/25 blur-[120px]" />
+                <div className="absolute left-1/2 top-1/2 h-[400px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.02] blur-[100px]" />
               </>
             )}
           </div>
@@ -483,7 +482,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                   <img src="/brand/lockup-option2-horizontal.svg" alt="Converge" className="h-16" />
                 </div>
                 <p className="mb-10 text-center text-[15px] text-muted-foreground">
-                  All your tools. One answer.
+                  All your PM tools. One AI-powered answer.
                 </p>
 
                 <form onSubmit={handleSearch} className="relative">
