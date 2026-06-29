@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { embedTexts } from '@/lib/pipeline/embed'
 import { getSession } from '@/lib/auth/session'
 
-const BATCH_SIZE = 20
-const PAGE_SIZE = 200
+const EMBED_BATCH = 20
+const PER_REQUEST = 50
+const ID_BATCH = 100
 
 interface ChunkDoc {
   title: string | null
@@ -70,114 +71,123 @@ function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unk
   return parts.length > 0 ? `[${parts.join(' | ')}] ` : ''
 }
 
-export async function POST() {
-  const userId = await getSession()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+async function getUserDocIds(userId: string): Promise<string[]> {
   const { data: connections } = await supabaseServer
     .from('connection')
-    .select('id, source_type')
+    .select('id')
     .eq('user_id', userId)
     .eq('status', 'active')
 
-  if (!connections || connections.length === 0) {
-    return NextResponse.json({ error: 'No active connections' }, { status: 404 })
-  }
+  if (!connections?.length) return []
 
-  const connIds = connections.map(c => c.id)
-
-  // Step 1: Null all embeddings for this user's chunks
-  const { data: docIds } = await supabaseServer
+  const { data: docs } = await supabaseServer
     .from('document')
     .select('id')
-    .in('connection_id', connIds)
+    .in('connection_id', connections.map(c => c.id))
 
-  if (!docIds || docIds.length === 0) {
+  return docs?.map(d => d.id) || []
+}
+
+async function countNullEmbeddings(docIds: string[]): Promise<number> {
+  let total = 0
+  for (let i = 0; i < docIds.length; i += ID_BATCH) {
+    const batch = docIds.slice(i, i + ID_BATCH)
+    const { count } = await supabaseServer
+      .from('chunk')
+      .select('id', { count: 'exact', head: true })
+      .in('document_id', batch)
+      .is('embedding', null)
+    total += count || 0
+  }
+  return total
+}
+
+export async function POST(request: NextRequest) {
+  const userId = await getSession()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const reset = request.nextUrl.searchParams.get('reset') === 'true'
+  const docIds = await getUserDocIds(userId)
+
+  if (docIds.length === 0) {
     return NextResponse.json({ error: 'No documents found' }, { status: 404 })
   }
 
-  const allDocIds = docIds.map(d => d.id)
-  let nulled = 0
-  const ID_BATCH = 100
-  for (let i = 0; i < allDocIds.length; i += ID_BATCH) {
-    const batch = allDocIds.slice(i, i + ID_BATCH)
-    const { data: nulledRows } = await supabaseServer
-      .from('chunk')
-      .update({ embedding: null })
-      .in('document_id', batch)
-      .not('embedding', 'is', null)
-      .select('id')
-    nulled += nulledRows?.length || 0
-  }
-
-  // Step 2: Re-embed in pages
-  let totalEmbedded = 0
-  let hasMore = true
-
-  while (hasMore) {
-    const chunks: { id: string; content: string; metadata: Record<string, unknown> | null; document: ChunkDoc | null }[] = []
-
-    for (let i = 0; i < allDocIds.length; i += ID_BATCH) {
-      const batch = allDocIds.slice(i, i + ID_BATCH)
+  if (reset) {
+    let nulled = 0
+    for (let i = 0; i < docIds.length; i += ID_BATCH) {
+      const batch = docIds.slice(i, i + ID_BATCH)
       const { data } = await supabaseServer
         .from('chunk')
-        .select('id, content, metadata, document:document_id(title, source_type, author, doc_type, indexed_at)')
+        .update({ embedding: null })
         .in('document_id', batch)
-        .is('embedding', null)
-        .limit(PAGE_SIZE)
-      if (data) chunks.push(...(data as unknown as typeof chunks))
-      if (chunks.length >= PAGE_SIZE) break
+        .not('embedding', 'is', null)
+        .select('id')
+      nulled += data?.length || 0
     }
-
-    const page = chunks.slice(0, PAGE_SIZE)
-    if (page.length === 0) { hasMore = false; break }
-
-    for (let i = 0; i < page.length; i += BATCH_SIZE) {
-      const batch = page.slice(i, i + BATCH_SIZE)
-      const texts = batch.map(c => {
-        const prefix = buildMetadataPrefix(c.document, c.metadata)
-        return prefix + c.content
-      })
-
-      try {
-        const embeddings = await embedTexts(texts)
-        if (i > 0) await new Promise(r => setTimeout(r, 1000))
-
-        for (let j = 0; j < batch.length; j++) {
-          const { error: updateError } = await supabaseServer
-            .from('chunk')
-            .update({ embedding: JSON.stringify(embeddings[j]) })
-            .eq('id', batch[j].id)
-          if (!updateError) totalEmbedded++
-        }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error'
-        if (message.includes('maximum input length')) {
-          for (const chunk of batch) {
-            try {
-              const prefix = buildMetadataPrefix(chunk.document, chunk.metadata)
-              const [embedding] = await embedTexts([prefix + chunk.content])
-              const { error: updateError } = await supabaseServer
-                .from('chunk')
-                .update({ embedding: JSON.stringify(embedding) })
-                .eq('id', chunk.id)
-              if (!updateError) totalEmbedded++
-            } catch {
-              console.error(`Chunk ${chunk.id} too large, skipping`)
-            }
-          }
-        } else {
-          console.error(`Embed batch failed: ${message}`)
-        }
-      }
-    }
-
-    hasMore = page.length >= PAGE_SIZE
+    const remaining = await countNullEmbeddings(docIds)
+    return NextResponse.json({ step: 'reset', nulled, remaining })
   }
 
-  return NextResponse.json({
-    nulled,
-    embedded: totalEmbedded,
-    connections: connections.map(c => c.source_type),
-  })
+  const chunks: { id: string; content: string; metadata: Record<string, unknown> | null; document: ChunkDoc | null }[] = []
+  for (let i = 0; i < docIds.length; i += ID_BATCH) {
+    const batch = docIds.slice(i, i + ID_BATCH)
+    const { data } = await supabaseServer
+      .from('chunk')
+      .select('id, content, metadata, document:document_id(title, source_type, author, doc_type, indexed_at)')
+      .in('document_id', batch)
+      .is('embedding', null)
+      .limit(PER_REQUEST)
+    if (data) chunks.push(...(data as unknown as typeof chunks))
+    if (chunks.length >= PER_REQUEST) break
+  }
+
+  const page = chunks.slice(0, PER_REQUEST)
+  if (page.length === 0) {
+    return NextResponse.json({ step: 'embed', embedded: 0, remaining: 0, done: true })
+  }
+
+  let embedded = 0
+  for (let i = 0; i < page.length; i += EMBED_BATCH) {
+    const batch = page.slice(i, i + EMBED_BATCH)
+    const texts = batch.map(c => {
+      const prefix = buildMetadataPrefix(c.document, c.metadata)
+      return prefix + c.content
+    })
+
+    try {
+      const embeddings = await embedTexts(texts)
+      if (i > 0) await new Promise(r => setTimeout(r, 1000))
+
+      for (let j = 0; j < batch.length; j++) {
+        const { error } = await supabaseServer
+          .from('chunk')
+          .update({ embedding: JSON.stringify(embeddings[j]) })
+          .eq('id', batch[j].id)
+        if (!error) embedded++
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      if (message.includes('maximum input length')) {
+        for (const chunk of batch) {
+          try {
+            const prefix = buildMetadataPrefix(chunk.document, chunk.metadata)
+            const [embedding] = await embedTexts([prefix + chunk.content])
+            const { error } = await supabaseServer
+              .from('chunk')
+              .update({ embedding: JSON.stringify(embedding) })
+              .eq('id', chunk.id)
+            if (!error) embedded++
+          } catch {
+            console.error(`Chunk ${chunk.id} too large, skipping`)
+          }
+        }
+      } else {
+        console.error(`Embed batch failed: ${message}`)
+      }
+    }
+  }
+
+  const remaining = await countNullEmbeddings(docIds)
+  return NextResponse.json({ step: 'embed', embedded, remaining, done: remaining === 0 })
 }
