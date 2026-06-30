@@ -2,11 +2,27 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { normalize } from '@/lib/pipeline/normalize'
 import { chunkDocument } from '@/lib/pipeline/chunk'
+import { getSession } from '@/lib/auth/session'
 
 export async function POST(request: NextRequest) {
+  const userId = await getSession()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { connectionId } = await request.json()
 
-  // Get all documents for this connection that haven't been chunked yet
+  const { data: conn } = await supabaseServer
+    .from('connection')
+    .select('id')
+    .eq('id', connectionId)
+    .eq('user_id', userId)
+    .single()
+
+  if (!conn) {
+    return NextResponse.json({ error: 'Connection not found' }, { status: 403 })
+  }
+
   const { data: documents, error } = await supabaseServer
     .from('document')
     .select('id, content, doc_type, title, source_type, author, indexed_at')

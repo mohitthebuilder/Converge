@@ -22,23 +22,17 @@ export async function GET(request: NextRequest) {
     const t2 = Date.now()
 
     const results = await Promise.all(
-      rewrite.subQueries.map(sq => retrieve(sq, 0.2, 10, userDocIds))
+      rewrite.subQueries.map(sq => retrieve(userId, sq, 0.2, 10))
     )
     const t3 = Date.now()
 
     const allChunks = results.flatMap(r => r.chunks)
 
-    const resultsNoFilter = await Promise.all(
-      rewrite.subQueries.map(sq => retrieve(sq, 0.2, 10))
-    )
-    const allChunksNoFilter = resultsNoFilter.flatMap(r => r.chunks)
-
     return NextResponse.json({
       timing: { rewrite: t1 - t0, authScope: t2 - t1, retrieve: t3 - t2, total: t3 - t0 },
       rewrite: rewrite.subQueries,
       authScope: { connections: connIds.length, documents: userDocIds.size },
-      withFilter: { chunks: allChunks.length, titles: [...new Set(allChunks.map(c => c.title))].slice(0, 5) },
-      withoutFilter: { chunks: allChunksNoFilter.length, titles: [...new Set(allChunksNoFilter.map(c => c.title))].slice(0, 5) },
+      results: { chunks: allChunks.length, titles: [...new Set(allChunks.map(c => c.title))].slice(0, 5) },
     })
   }
 

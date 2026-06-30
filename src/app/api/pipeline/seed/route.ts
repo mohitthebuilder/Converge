@@ -1048,12 +1048,10 @@ function formatSlackContent(msg: typeof SLACK_MESSAGES[0]): string {
 }
 
 export async function POST() {
-  let userId = await getSession()
+  const userId = await getSession()
   if (!userId) {
-    const { data: user } = await supabaseServer.from('users').select('id').limit(1).single()
-    userId = user?.id || null
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  if (!userId) return NextResponse.json({ error: 'No user found' }, { status: 404 })
 
   // Create synthetic connections
   const { data: existingJira } = await supabaseServer

@@ -128,30 +128,14 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      // ── Embed + Auth scope in parallel (rewrite runs in background) ──
+      // ── Embed query in parallel with rewrite ──
       const rewritePromise = rewriteQuery(query)
       const embedPromise = embedQuery(query)
-      const { data: conns } = await supabaseServer
-        .from('connection')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-      const connIds = conns?.map(c => c.id) || []
-      console.log(`[DIAG] userId=${userId}, active connections=${connIds.length}`)
-      let userDocIds = new Set<string>()
-      if (connIds.length > 0) {
-        const { data: docs } = await supabaseServer
-          .from('document')
-          .select('id')
-          .in('connection_id', connIds)
-        userDocIds = new Set(docs?.map(d => d.id) || [])
-        console.log(`[DIAG] documents in scope=${userDocIds.size}`)
-      }
       const queryEmbedding = await embedPromise
-      t('auth-scope+embed')
+      t('embed')
 
-      // ── Retrieval with precomputed embedding (skips embed step inside retrieve) ──
-      const subResults = [await retrieve(query, 0.2, 10, userDocIds, queryEmbedding)]
+      // ── Retrieval (user_id filtering happens at SQL level in RPCs) ──
+      const subResults = [await retrieve(userId, query, 0.2, 10, queryEmbedding)]
       t('retrieval')
 
       const seenChunkIds = new Set<string>()
@@ -189,7 +173,7 @@ export async function POST(request: NextRequest) {
           const synced = new Date(conn.last_synced_at)
           lastSyncNote = ` Data last synced ${synced.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })} at ${synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' })} IST.`
         }
-        console.log(`[DIAG] no results — userDocIds.size=${userDocIds.size}, query=${query}`)
+        console.log(`[DIAG] no results — userId=${userId}, query=${query}`)
         await writer.write(sseEvent(encoder, { type: 'sources', sources: [] }))
         await writer.write(sseEvent(encoder, { type: 'text', content: `No relevant sources found for your question. Try rephrasing, or check that your tools are connected and synced.${lastSyncNote}` }))
         await writer.write(sseEvent(encoder, { type: 'done', latencyMs: 0 }))

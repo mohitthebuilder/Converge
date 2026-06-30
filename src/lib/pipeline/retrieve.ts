@@ -134,10 +134,10 @@ export interface RetrievalMeta {
 }
 
 export async function retrieve(
+  userId: string,
   query: string,
   threshold = 0.2,
   topK = MAX_CHUNKS,
-  filterDocIds?: Set<string>,
   precomputedEmbedding?: number[]
 ): Promise<{ chunks: RetrievedChunk[]; meta: RetrievalMeta }> {
   const t0 = Date.now()
@@ -148,30 +148,24 @@ export async function retrieve(
   const t1 = Date.now()
   const [semanticResult, bm25Result] = await Promise.all([
     supabaseServer.rpc('match_chunks', {
+      user_id_param: userId,
       query_embedding: queryEmbedding,
       match_threshold: threshold,
       match_count: CANDIDATE_COUNT,
     }),
     supabaseServer.rpc('match_chunks_bm25', {
+      user_id_param: userId,
       query_text: query,
       match_count: CANDIDATE_COUNT,
     }),
   ])
   console.log(`[TIMING] search: ${Date.now() - t1}ms`)
 
-  let semanticChunks = semanticResult.data || []
-  let bm25Chunks = bm25Result.error ? [] : (bm25Result.data || [])
+  const semanticChunks = semanticResult.data || []
+  const bm25Chunks = bm25Result.error ? [] : (bm25Result.data || [])
   if (semanticResult.error) console.log(`[DIAG] semantic search error: ${JSON.stringify(semanticResult.error)}`)
   if (bm25Result.error) console.log(`[DIAG] bm25 search error: ${JSON.stringify(bm25Result.error)}`)
-  console.log(`[DIAG] pre-filter: semantic=${semanticChunks.length}, bm25=${bm25Chunks.length}, filterDocIds=${filterDocIds?.size ?? 'none'}`)
-
-  if (filterDocIds && filterDocIds.size > 0) {
-    const preSemantic = semanticChunks.length
-    const preBm25 = bm25Chunks.length
-    semanticChunks = semanticChunks.filter((c: { document_id: string }) => filterDocIds.has(c.document_id))
-    bm25Chunks = bm25Chunks.filter((c: { document_id: string }) => filterDocIds.has(c.document_id))
-    console.log(`[DIAG] post-filter: semantic=${semanticChunks.length}/${preSemantic}, bm25=${bm25Chunks.length}/${preBm25}`)
-  }
+  console.log(`[DIAG] results: semantic=${semanticChunks.length}, bm25=${bm25Chunks.length} (user_id filtered at SQL level)`)
 
   if (semanticChunks.length === 0 && bm25Chunks.length === 0) {
     console.log(`[DIAG] 0 results after filter — returning empty`)

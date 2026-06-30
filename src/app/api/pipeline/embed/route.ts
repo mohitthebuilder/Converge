@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { embedTexts } from '@/lib/pipeline/embed'
+import { getSession } from '@/lib/auth/session'
 
 const BATCH_SIZE = 20
 const PAGE_LIMIT = 200
@@ -84,7 +85,23 @@ function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unk
 }
 
 export async function POST(request: NextRequest) {
+  const userId = await getSession()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const { connectionId } = await request.json()
+
+  const { data: conn } = await supabaseServer
+    .from('connection')
+    .select('id')
+    .eq('id', connectionId)
+    .eq('user_id', userId)
+    .single()
+
+  if (!conn) {
+    return NextResponse.json({ error: 'Connection not found' }, { status: 403 })
+  }
 
   const { data: docs } = await supabaseServer
     .from('document')
