@@ -20,6 +20,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
+import { Info } from 'lucide-react'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import HistorySidebar from './HistorySidebar'
 import AnswerView from './AnswerView'
 import Rating from './Rating'
@@ -679,6 +681,18 @@ export default function SearchView({ user, connections: initialConnections, hist
                       confidence.level === 'high' ? 'bg-emerald-500' : confidence.level === 'medium' ? 'bg-green-500' : 'bg-amber-500'
                     }`} />
                     Confidence: {confidence.level === 'high' ? 'High' : confidence.level === 'medium' ? 'Good' : 'Average'}
+                    <Tooltip>
+                      <TooltipTrigger className="inline-flex cursor-help">
+                        <Info className="h-3 w-3 opacity-60 hover:opacity-100 transition-opacity" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {confidence.level === 'high'
+                          ? 'Highly relevant context found across your sources'
+                          : confidence.level === 'medium'
+                          ? 'Partially relevant context found — some details may be missing'
+                          : 'Limited relevant context — answer may be incomplete'}
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 )}
 
