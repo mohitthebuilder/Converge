@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
               author: issue.fields.reporter?.displayName || null,
               doc_type: 'jira_issue',
               content_hash: contentHash,
-              indexed_at: issue.fields.updated,
+              document_date: issue.fields.updated,
             },
             { onConflict: 'connection_id,source_id' }
           )

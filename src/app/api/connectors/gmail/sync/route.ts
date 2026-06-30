@@ -101,41 +101,25 @@ interface GmailThread {
   messages: GmailMessage[]
 }
 
-function formatThread(thread: GmailThread): { subject: string; content: string; author: string; recipients: string; message_count: number; latestDate: string | null } {
-  const messages = thread.messages || []
-  const firstMessage = messages[0]
-  const subject = getHeader(firstMessage, 'Subject') || '(No subject)'
-  const author = getHeader(firstMessage, 'From')
+function formatMessage(msg: GmailMessage, subject: string): { content: string; author: string; messageDate: string | null } {
+  const from = getHeader(msg, 'From')
+  const to = getHeader(msg, 'To')
+  const cc = getHeader(msg, 'Cc')
+  const date = getHeader(msg, 'Date')
+  const body = extractBody(msg.payload)
 
-  const allRecipients = new Set<string>()
-  let latestDate: string | null = null
-  const formattedMessages = messages.map((msg) => {
-    const from = getHeader(msg, 'From')
-    const to = getHeader(msg, 'To')
-    const cc = getHeader(msg, 'Cc')
-    const date = getHeader(msg, 'Date')
-    const body = extractBody(msg.payload)
+  let content = `Subject: ${subject}\nFrom: ${from}`
+  if (to) content += `\nTo: ${to}`
+  if (cc) content += `\nCc: ${cc}`
+  content += `\nDate: ${date}\n\n${body}`
 
-    if (date) {
-      const parsed = new Date(date)
-      if (!isNaN(parsed.getTime()) && (!latestDate || parsed.getTime() > new Date(latestDate).getTime())) {
-        latestDate = parsed.toISOString()
-      }
-    }
+  let messageDate: string | null = null
+  if (date) {
+    const parsed = new Date(date)
+    if (!isNaN(parsed.getTime())) messageDate = parsed.toISOString()
+  }
 
-    if (to) to.split(',').forEach(r => allRecipients.add(r.trim().split('<')[0].trim()))
-    if (cc) cc.split(',').forEach(r => allRecipients.add(r.trim().split('<')[0].trim()))
-
-    let header = `From: ${from}\nDate: ${date}`
-    if (to) header += `\nTo: ${to}`
-    if (cc) header += `\nCc: ${cc}`
-
-    return `${header}\n\n${body}`
-  })
-
-  const content = `Subject: ${subject}\n\n${formattedMessages.join('\n\n---\n\n')}`
-  const recipients = [...allRecipients].filter(Boolean).slice(0, 5).join(', ')
-  return { subject, content, author, recipients, message_count: messages.length, latestDate }
+  return { content, author: from, messageDate }
 }
 
 export async function POST(request: NextRequest) {
@@ -190,40 +174,47 @@ export async function POST(request: NextRequest) {
       { headers: { Authorization: `Bearer ${accessToken}` } }
     )
     const thread: GmailThread = await threadResponse.json()
+    const messages = thread.messages || []
+    if (messages.length === 0) continue
 
-    const { subject, content, author, latestDate } = formatThread(thread)
-    if (!content.trim()) continue
+    const subject = getHeader(messages[0], 'Subject') || '(No subject)'
+    const threadUrl = `https://mail.google.com/mail/?authuser=${encodeURIComponent(userEmail)}#inbox/${threadId}`
 
-    const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
+    for (const msg of messages) {
+      const { content, author, messageDate } = formatMessage(msg, subject)
+      if (!content.trim()) continue
 
-    const { data: existing } = await supabaseServer
-      .from('document')
-      .select('id, content_hash')
-      .eq('connection_id', connection.id)
-      .eq('source_id', threadId)
-      .single()
+      const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
 
-    if (existing?.content_hash === contentHash) continue
+      const { data: existing } = await supabaseServer
+        .from('document')
+        .select('id, content_hash')
+        .eq('connection_id', connection.id)
+        .eq('source_id', msg.id)
+        .single()
 
-    await supabaseServer
-      .from('document')
-      .upsert(
-        {
-          connection_id: connection.id,
-          source_type: 'gmail',
-          source_id: threadId,
-          source_url: `https://mail.google.com/mail/?authuser=${encodeURIComponent(userEmail)}#inbox/${threadId}`,
-          title: subject,
-          content,
-          author,
-          doc_type: 'email_thread',
-          content_hash: contentHash,
-          indexed_at: latestDate || new Date().toISOString(),
-        },
-        { onConflict: 'connection_id,source_id' }
-      )
+      if (existing?.content_hash === contentHash) continue
 
-    synced++
+      await supabaseServer
+        .from('document')
+        .upsert(
+          {
+            connection_id: connection.id,
+            source_type: 'gmail',
+            source_id: msg.id,
+            source_url: threadUrl,
+            title: subject,
+            content,
+            author,
+            doc_type: 'email',
+            content_hash: contentHash,
+            document_date: messageDate || new Date().toISOString(),
+          },
+          { onConflict: 'connection_id,source_id' }
+        )
+
+      synced++
+    }
   }
 
   await supabaseServer

@@ -12,7 +12,7 @@ interface ChunkDoc {
   source_type: string
   author: string | null
   doc_type: string | null
-  indexed_at: string | null
+  document_date: string | null
 }
 
 function formatDate(iso: string | null): string | null {
@@ -24,7 +24,7 @@ function formatDate(iso: string | null): string | null {
 
 function buildMetadataPrefix(doc: ChunkDoc | null, chunkMeta: Record<string, unknown> | null): string {
   if (!doc) return ''
-  const date = formatDate(doc.indexed_at)
+  const date = formatDate(doc.document_date)
   const st = doc.source_type
 
   if (st === 'google_drive') {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     const batch = docIds.slice(i, i + ID_BATCH)
     const { data } = await supabaseServer
       .from('chunk')
-      .select('id, content, metadata, document:document_id(title, source_type, author, doc_type, indexed_at)')
+      .select('id, content, metadata, document:document_id(title, source_type, author, doc_type, document_date)')
       .in('document_id', batch)
       .is('embedding', null)
       .limit(PER_REQUEST)
