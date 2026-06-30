@@ -67,14 +67,15 @@ function groupChunksByDocument(chunks: RetrievedChunk[]): SourceGroup[] {
   let nextIndex = 1
 
   for (const chunk of chunks) {
-    const existing = groups.get(chunk.documentId)
+    const groupKey = chunk.sourceUrl || chunk.documentId
+    const existing = groups.get(groupKey)
     if (existing) {
       existing.chunks.push(chunk)
       if (chunk.similarity > existing.bestScore) {
         existing.bestScore = chunk.similarity
       }
     } else {
-      groups.set(chunk.documentId, {
+      groups.set(groupKey, {
         index: nextIndex++,
         title: chunk.title,
         sourceType: chunk.sourceType,

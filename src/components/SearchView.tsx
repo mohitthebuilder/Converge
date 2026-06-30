@@ -691,7 +691,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                     }`} />
                     Confidence: {confidence.level === 'high' ? 'High' : confidence.level === 'medium' ? 'Good' : 'Average'}
                     <Tooltip>
-                      <TooltipTrigger className="inline-flex cursor-help">
+                      <TooltipTrigger className="inline-flex">
                         <Info className="h-3 w-3 opacity-60 hover:opacity-100 transition-opacity" />
                       </TooltipTrigger>
                       <TooltipContent side="top">
