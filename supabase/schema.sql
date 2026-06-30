@@ -38,7 +38,7 @@ create table if not exists document (
   author text,
   doc_type text,
   content_hash text,
-  indexed_at timestamptz default now(),
+  document_date timestamptz default now(),
   unique(connection_id, source_id)
 );
 

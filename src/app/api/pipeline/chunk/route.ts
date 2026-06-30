@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const { data: documents, error } = await supabaseServer
     .from('document')
-    .select('id, content, doc_type, title, source_type, author, indexed_at')
+    .select('id, content, doc_type, title, source_type, author, document_date')
     .eq('connection_id', connectionId)
     .not('content', 'is', null)
 

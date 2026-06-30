@@ -1116,7 +1116,7 @@ export async function POST() {
           author: issue.reporter,
           doc_type: 'jira_issue',
           content_hash: contentHash,
-          indexed_at: issue.updated,
+          document_date: issue.updated,
         },
         { onConflict: 'connection_id,source_id' }
       )
@@ -1147,7 +1147,7 @@ export async function POST() {
           author: msg.username,
           doc_type: 'slack_message',
           content_hash: contentHash,
-          indexed_at: new Date(msg.date).toISOString(),
+          document_date: new Date(msg.date).toISOString(),
         },
         { onConflict: 'connection_id,source_id' }
       )

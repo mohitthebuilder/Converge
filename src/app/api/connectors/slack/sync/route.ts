@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
               author: username,
               doc_type: 'slack_message',
               content_hash: contentHash,
-              indexed_at: msgDate.toISOString(),
+              document_date: msgDate.toISOString(),
             },
             { onConflict: 'connection_id,source_id' }
           )
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
                   author: replyUsername,
                   doc_type: 'slack_message',
                   content_hash: replyHash,
-                  indexed_at: replyDate.toISOString(),
+                  document_date: replyDate.toISOString(),
                 },
                 { onConflict: 'connection_id,source_id' }
               )

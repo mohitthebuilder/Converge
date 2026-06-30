@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
           author: file.owners?.[0]?.displayName || null,
           doc_type: file.mimeType,
           content_hash: contentHash,
-          indexed_at: file.modifiedTime || new Date().toISOString(),
+          document_date: file.modifiedTime || new Date().toISOString(),
         },
         { onConflict: 'connection_id,source_id' }
       )
