@@ -108,6 +108,10 @@ export default function SearchView({ user, connections: initialConnections, hist
   const searchStartRef = useRef<number>(0)
 
   useEffect(() => {
+    setLocalConnections(initialConnections)
+  }, [initialConnections])
+
+  useEffect(() => {
     if (query) return
     const phrase = PLACEHOLDERS[phraseIdx % PLACEHOLDERS.length]
     if (typePhase === 'typing') {
@@ -308,11 +312,16 @@ export default function SearchView({ user, connections: initialConnections, hist
   async function confirmDisconnect() {
     if (!disconnectTarget) return
     const toolName = ALL_TOOLS.find(t => t.key === disconnectTarget)?.name || disconnectTarget
-    await fetch('/api/connectors/disconnect', {
+    const res = await fetch('/api/connectors/disconnect', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceType: disconnectTarget }),
     })
+    if (!res.ok) {
+      setDisconnectTarget(null)
+      toast.error(`Failed to disconnect ${toolName}`)
+      return
+    }
     setLocalConnections(prev => prev.filter(c => c.source_type !== disconnectTarget))
     setDisconnectTarget(null)
     toast.success(`${toolName} disconnected`)
