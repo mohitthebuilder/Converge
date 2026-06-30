@@ -26,6 +26,7 @@ RETURNS TABLE(
   INNER JOIN document d ON d.id = c.document_id
   INNER JOIN connection conn ON conn.id = d.connection_id
   WHERE conn.user_id = user_id_param
+    AND conn.status = 'active'
     AND c.embedding IS NOT NULL
     AND (1 - (c.embedding <=> query_embedding)) > match_threshold
   ORDER BY similarity DESC
@@ -55,6 +56,7 @@ RETURNS TABLE(
   INNER JOIN document d ON d.id = c.document_id
   INNER JOIN connection conn ON conn.id = d.connection_id
   WHERE conn.user_id = user_id_param
+    AND conn.status = 'active'
     AND c.search_vector @@ plainto_tsquery('english', query_text)
   ORDER BY rank DESC
   LIMIT match_count;
