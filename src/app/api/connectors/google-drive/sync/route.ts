@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
           connection_id: connection.id,
           source_type: 'google_drive',
           source_id: file.id,
-          source_url: file.webViewLink,
+          source_url: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
           title: file.name,
           content,
           author: file.owners?.[0]?.displayName || null,

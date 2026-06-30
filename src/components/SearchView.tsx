@@ -697,13 +697,14 @@ export default function SearchView({ user, connections: initialConnections, hist
                       <div className="grid grid-cols-2 gap-2.5">
                         {ranked.map((s, i) => {
                           const icon = getToolIcon(s.tool)
+                          const hasUrl = s.url && s.url.startsWith('http')
+                          const Tag = hasUrl ? 'a' : 'div'
+                          const linkProps = hasUrl ? { href: s.url, target: '_blank', rel: 'noopener noreferrer' } : {}
                           return (
-                            <a
+                            <Tag
                               key={i}
-                              href={s.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group flex items-start gap-3 rounded-xl border border-border/40 bg-muted/20 p-3 transition-all duration-150 hover:border-border/80 hover:bg-muted/40 hover:shadow-sm"
+                              {...linkProps}
+                              className={`group flex items-start gap-3 rounded-xl border border-border/40 bg-muted/20 p-3 transition-all duration-150 hover:border-border/80 hover:bg-muted/40 hover:shadow-sm${hasUrl ? ' cursor-pointer' : ''}`}
                             >
                               <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                                 {icon || <span className="text-[11px] font-semibold text-primary">?</span>}
@@ -714,7 +715,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                                   <p className="text-[11px] text-muted-foreground">{s.tool}</p>
                                 </div>
                               </div>
-                            </a>
+                            </Tag>
                           )
                         })}
                       </div>

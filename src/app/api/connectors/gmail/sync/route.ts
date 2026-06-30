@@ -154,6 +154,13 @@ export async function POST(request: NextRequest) {
 
   const accessToken = await getAccessToken(connection)
 
+  const { data: user } = await supabaseServer
+    .from('users')
+    .select('email')
+    .eq('id', connection.user_id)
+    .single()
+  const userEmail = user?.email || ''
+
   const threadIds: string[] = []
   let pageToken: string | undefined
 
@@ -205,7 +212,7 @@ export async function POST(request: NextRequest) {
           connection_id: connection.id,
           source_type: 'gmail',
           source_id: threadId,
-          source_url: `https://mail.google.com/mail/u/0/#inbox/${threadId}`,
+          source_url: `https://mail.google.com/mail/?authuser=${encodeURIComponent(userEmail)}#inbox/${threadId}`,
           title: subject,
           content,
           author,
