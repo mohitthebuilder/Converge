@@ -133,8 +133,8 @@ export default function LoginPage() {
         </Button>
         <p className="mt-3 text-[11px] text-muted-foreground">
           By continuing, you agree to Converge&apos;s{' '}
-          <a href="#" className="underline underline-offset-2 hover:text-foreground">Terms of Service</a> and{' '}
-          <a href="#" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</a>.
+          <a href="/terms" className="underline underline-offset-2 hover:text-foreground">Terms of Service</a> and{' '}
+          <a href="/privacy" className="underline underline-offset-2 hover:text-foreground">Privacy Policy</a>.
         </p>
       </section>
 
