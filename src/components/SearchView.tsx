@@ -318,8 +318,10 @@ export default function SearchView({ user, connections: initialConnections, hist
       body: JSON.stringify({ sourceType: disconnectTarget }),
     })
     if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      console.error('[DISCONNECT]', res.status, body)
       setDisconnectTarget(null)
-      toast.error(`Failed to disconnect ${toolName}`)
+      toast.error(`Failed to disconnect ${toolName} (${res.status}: ${body.error || 'unknown'})`)
       return
     }
     setLocalConnections(prev => prev.filter(c => c.source_type !== disconnectTarget))
