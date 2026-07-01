@@ -29,7 +29,7 @@ RETURNS TABLE(
     AND conn.status = 'active'
     AND c.embedding IS NOT NULL
     AND (1 - (c.embedding <=> query_embedding)) > match_threshold
-  ORDER BY similarity DESC
+  ORDER BY similarity DESC, c.id ASC
   LIMIT match_count;
 $$ LANGUAGE sql;
 
@@ -58,6 +58,6 @@ RETURNS TABLE(
   WHERE conn.user_id = user_id_param
     AND conn.status = 'active'
     AND c.search_vector @@ plainto_tsquery('english', query_text)
-  ORDER BY rank DESC
+  ORDER BY rank DESC, c.id ASC
   LIMIT match_count;
 $$ LANGUAGE sql;

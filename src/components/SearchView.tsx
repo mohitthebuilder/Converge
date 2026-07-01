@@ -238,12 +238,12 @@ export default function SearchView({ user, connections: initialConnections, hist
           const data = JSON.parse(line.slice(6))
 
           if (data.type === 'sources') {
-            setSources(data.sources || [])
+            const s = data.sources || []
+            setSources(s)
+            if (s.length === 0) setNoResults(true)
           } else if (data.type === 'confidence') {
             if (data.level === 'none') {
-              setSources([])
               setConfidence(null)
-              setNoResults(true)
             } else {
               setConfidence({ level: data.level, message: data.message })
             }
