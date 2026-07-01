@@ -625,7 +625,7 @@ export default function SearchView({ user, connections: initialConnections, hist
                       type="text"
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Ask a follow-up..."
+                      placeholder="Ask another question..."
                       className="w-full rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 pr-10 text-sm text-foreground transition-all duration-200 placeholder:text-muted-foreground/75 focus:border-primary/30 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/10"
                     />
                     <button
