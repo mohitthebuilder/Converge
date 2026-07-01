@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, RetrievedChunk, RetrievalMeta } from '@/lib/pipeline/retrieve'
-import { rewriteQuery } from '@/lib/pipeline/rewrite'
 import { embedQuery } from '@/lib/pipeline/embed'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
@@ -129,8 +128,6 @@ export async function POST(request: NextRequest) {
 
   ;(async () => {
     try {
-      // ── Embed query in parallel with rewrite ──
-      const rewritePromise = rewriteQuery(query)
       const embedPromise = embedQuery(query)
       const queryEmbedding = await embedPromise
       t('embed')
@@ -194,10 +191,7 @@ export async function POST(request: NextRequest) {
       await writer.write(sseEvent(encoder, { type: 'sources', sources }))
       t('sources sent')
 
-      // ── Model routing: Haiku for high-confidence, Sonnet for complex ──
-      const bestScore = Math.max(...chunks.map(c => c.similarity))
-      const useHaiku = bestScore >= 0.5 && chunks.length >= 3
-      const selectedModel = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6'
+      const selectedModel = 'claude-haiku-4-5-20251001'
 
       // ── LLM streaming ──
       const contextBlock = formatGroupedPrompt(sourceGroups)
@@ -209,6 +203,7 @@ export async function POST(request: NextRequest) {
       const stream = anthropic.messages.stream({
         model: selectedModel,
         max_tokens: 1000,
+        temperature: 0,
         system: [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: `${retrievalSignal}\n\n<context>\n${contextBlock}\n</context>\n\n<question>\n${query}\n</question>` }],
       })
@@ -239,10 +234,9 @@ export async function POST(request: NextRequest) {
       t('done sent')
 
       // ── Persist to DB (after done event — doesn't inflate latency) ──
-      const rewrite = await rewritePromise.catch(() => ({ subQueries: [query], reasoning: '' }))
       const { data: queryRow } = await supabaseServer
         .from('query')
-        .insert({ user_id: userId, original_query: query, rewritten_query: rewrite.subQueries.join(' | '), live_context_on: false })
+        .insert({ user_id: userId, original_query: query, rewritten_query: query, live_context_on: false })
         .select('id')
         .single()
 
