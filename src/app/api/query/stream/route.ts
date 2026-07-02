@@ -1,11 +1,8 @@
 import { NextRequest } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
 import { retrieve, RetrievedChunk, RetrievalMeta } from '@/lib/pipeline/retrieve'
 import { embedQuery } from '@/lib/pipeline/embed'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SYSTEM_PROMPT = `You are Converge, a knowledge assistant for Product Managers. Answer the PM's question using ONLY the provided documents.
 
@@ -193,7 +190,10 @@ export async function POST(request: NextRequest) {
 
       const selectedModel = 'claude-haiku-4-5-20251001'
 
-      // ── LLM streaming ──
+      // ── LLM streaming (SDK loaded dynamically to reduce cold start) ──
+      const { default: Anthropic } = await import('@anthropic-ai/sdk')
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
       const contextBlock = formatGroupedPrompt(sourceGroups)
       let fullAnswer = ''
       let firstToken = true
