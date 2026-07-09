@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
+import { fetchExistingDocs, batchUpsertDocuments, hashContent, DocumentRow } from '@/lib/db/sync'
+
+export const maxDuration = 60
 
 const NINETY_DAYS_SEC = 90 * 24 * 60 * 60
 
@@ -16,10 +19,20 @@ interface SlackMessage {
 async function slackApi(endpoint: string, token: string, params: Record<string, string> = {}) {
   const url = new URL(`https://slack.com/api/${endpoint}`)
   Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
-  const response = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  return response.json()
+
+  // Honor Slack rate limits (429 + Retry-After) instead of silently failing
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (response.status === 429) {
+      const retryAfter = Math.min(parseInt(response.headers.get('Retry-After') || '2', 10), 10)
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000))
+      continue
+    }
+    return response.json()
+  }
+  return { ok: false, error: 'rate_limited' }
 }
 
 function cleanSlackText(text: string, userCache: Map<string, string>): string {
@@ -80,6 +93,11 @@ export async function POST(request: NextRequest) {
     return name
   }
 
+  // One batched lookup instead of one query per message (Vercel timeout root cause)
+  const existingDocs = await fetchExistingDocs(connection.id)
+  const seen = new Set<string>()
+  const rows: DocumentRow[] = []
+
   let synced = 0
 
   for (const channel of channels) {
@@ -106,34 +124,25 @@ export async function POST(request: NextRequest) {
       // Store parent/top-level message
       const sourceId = `${channel.id}:${msg.ts}`
       const sourceUrl = `https://app.slack.com/archives/${channel.id}/p${tsNoDot}`
-      const contentHash = Buffer.from(cleanText).toString('base64').slice(0, 32)
+      const contentHash = hashContent(cleanText)
 
-      const { data: existing } = await supabaseServer
-        .from('document')
-        .select('id, content_hash')
-        .eq('connection_id', connection.id)
-        .eq('source_id', sourceId)
-        .single()
-
-      if (existing?.content_hash !== contentHash) {
-        await supabaseServer
-          .from('document')
-          .upsert(
-            {
-              connection_id: connection.id,
-              source_type: 'slack',
-              source_id: sourceId,
-              source_url: sourceUrl,
-              title: `#${channel.name}`,
-              content: cleanText,
-              author: username,
-              doc_type: 'slack_message',
-              content_hash: contentHash,
-              document_date: msgDate.toISOString(),
-            },
-            { onConflict: 'connection_id,source_id' }
-          )
+      if (!seen.has(sourceId) && existingDocs.get(sourceId)?.contentHash !== contentHash) {
+        seen.add(sourceId)
+        rows.push({
+          connection_id: connection.id,
+          source_type: 'slack',
+          source_id: sourceId,
+          source_url: sourceUrl,
+          title: `#${channel.name}`,
+          content: cleanText,
+          author: username,
+          doc_type: 'slack_message',
+          content_hash: contentHash,
+          document_date: msgDate.toISOString(),
+        })
         synced++
+        // Flush periodically so partial progress survives a timeout
+        if (rows.length >= 100) await batchUpsertDocuments(rows.splice(0))
       }
 
       // Fetch and store thread replies
@@ -159,39 +168,32 @@ export async function POST(request: NextRequest) {
           const replyTsNoDot = reply.ts.replace('.', '')
           const replySourceId = `${channel.id}:${reply.ts}`
           const replyUrl = `https://app.slack.com/archives/${channel.id}/p${replyTsNoDot}?thread_ts=${msg.ts}`
-          const replyHash = Buffer.from(replyContent).toString('base64').slice(0, 32)
+          const replyHash = hashContent(replyContent)
 
-          const { data: existingReply } = await supabaseServer
-            .from('document')
-            .select('id, content_hash')
-            .eq('connection_id', connection.id)
-            .eq('source_id', replySourceId)
-            .single()
-
-          if (existingReply?.content_hash !== replyHash) {
-            await supabaseServer
-              .from('document')
-              .upsert(
-                {
-                  connection_id: connection.id,
-                  source_type: 'slack',
-                  source_id: replySourceId,
-                  source_url: replyUrl,
-                  title: `#${channel.name}`,
-                  content: replyContent,
-                  author: replyUsername,
-                  doc_type: 'slack_message',
-                  content_hash: replyHash,
-                  document_date: replyDate.toISOString(),
-                },
-                { onConflict: 'connection_id,source_id' }
-              )
+          if (!seen.has(replySourceId) && existingDocs.get(replySourceId)?.contentHash !== replyHash) {
+            seen.add(replySourceId)
+            rows.push({
+              connection_id: connection.id,
+              source_type: 'slack',
+              source_id: replySourceId,
+              source_url: replyUrl,
+              title: `#${channel.name}`,
+              content: replyContent,
+              author: replyUsername,
+              doc_type: 'slack_message',
+              content_hash: replyHash,
+              document_date: replyDate.toISOString(),
+            })
             synced++
+            // Flush periodically so partial progress survives a timeout
+            if (rows.length >= 100) await batchUpsertDocuments(rows.splice(0))
           }
         }
       }
     }
   }
+
+  await batchUpsertDocuments(rows)
 
   await supabaseServer
     .from('connection')

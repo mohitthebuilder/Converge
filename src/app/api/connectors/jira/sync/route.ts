@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
+import { fetchExistingDocs, batchUpsertDocuments, hashContent, DocumentRow } from '@/lib/db/sync'
+
+export const maxDuration = 60
 
 interface JiraIssue {
   key: string
@@ -149,6 +152,11 @@ export async function POST(request: NextRequest) {
   const baseUrl = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3`
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
 
+  // One batched lookup instead of one query per issue (Vercel timeout root cause)
+  const existingDocs = await fetchExistingDocs(connection.id)
+  const seen = new Set<string>()
+  const rows: DocumentRow[] = []
+
   let synced = 0
   let startAt = 0
   const maxResults = 50
@@ -167,42 +175,37 @@ export async function POST(request: NextRequest) {
 
     for (const issue of issues) {
       const content = formatIssue(issue)
-      const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
+      const contentHash = hashContent(content)
       const sourceId = issue.key
       const sourceUrl = `https://api.atlassian.com/ex/jira/${cloudId}/browse/${issue.key}`
 
-      const { data: existing } = await supabaseServer
-        .from('document')
-        .select('id, content_hash')
-        .eq('connection_id', connection.id)
-        .eq('source_id', sourceId)
-        .single()
+      if (seen.has(sourceId)) continue
+      seen.add(sourceId)
 
-      if (existing?.content_hash !== contentHash) {
-        await supabaseServer
-          .from('document')
-          .upsert(
-            {
-              connection_id: connection.id,
-              source_type: 'jira',
-              source_id: sourceId,
-              source_url: sourceUrl,
-              title: `${issue.key}: ${issue.fields.summary}`,
-              content,
-              author: issue.fields.reporter?.displayName || null,
-              doc_type: 'jira_issue',
-              content_hash: contentHash,
-              document_date: issue.fields.updated,
-            },
-            { onConflict: 'connection_id,source_id' }
-          )
+      if (existingDocs.get(sourceId)?.contentHash !== contentHash) {
+        rows.push({
+          connection_id: connection.id,
+          source_type: 'jira',
+          source_id: sourceId,
+          source_url: sourceUrl,
+          title: `${issue.key}: ${issue.fields.summary}`,
+          content,
+          author: issue.fields.reporter?.displayName || null,
+          doc_type: 'jira_issue',
+          content_hash: contentHash,
+          document_date: issue.fields.updated,
+        })
         synced++
+        // Flush periodically so partial progress survives a timeout
+        if (rows.length >= 100) await batchUpsertDocuments(rows.splice(0))
       }
     }
 
     startAt += issues.length
     if (startAt >= (data.total || 0)) break
   }
+
+  await batchUpsertDocuments(rows)
 
   await supabaseServer
     .from('connection')
