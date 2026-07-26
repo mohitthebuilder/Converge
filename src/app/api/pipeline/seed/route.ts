@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
 import { getSession } from '@/lib/auth/session'
+import { hashContent } from '@/lib/db/sync'
 
 // Fictional company: Nexus — B2B SaaS analytics platform
 // Team: Sarah Chen (PM), Raj Patel (Eng Lead), Lena Park (Designer), Marcus Johnson (Backend),
@@ -1101,7 +1102,7 @@ export async function POST() {
   // Seed Jira issues
   for (const issue of JIRA_ISSUES) {
     const content = formatJiraContent(issue)
-    const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
+    const contentHash = hashContent(content)
 
     const { error } = await supabaseServer
       .from('document')
@@ -1132,7 +1133,7 @@ export async function POST() {
     const msg = SLACK_MESSAGES[i]
     const content = formatSlackContent(msg)
     const sourceId = `${msg.channel}:${msg.date}:${i}`
-    const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
+    const contentHash = hashContent(content)
 
     const { error } = await supabaseServer
       .from('document')

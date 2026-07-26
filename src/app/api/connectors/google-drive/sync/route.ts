@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
+import { fetchExistingDocs, batchUpsertDocuments, mapWithConcurrency, hashContent, DocumentRow } from '@/lib/db/sync'
+
+export const maxDuration = 60
 
 if (typeof globalThis.DOMMatrix === 'undefined') {
   // @ts-expect-error polyfill for pdfjs-dist in Vercel serverless
@@ -127,45 +130,59 @@ export async function POST(request: NextRequest) {
     pageToken = data.nextPageToken
   } while (pageToken)
 
-  // Process each file
+  // One batched lookup instead of one query per file (Vercel timeout root cause)
+  const existingDocs = await fetchExistingDocs(connection.id)
+
+  // Dedupe (pagination can shift mid-listing) then skip unchanged files
+  // (modifiedTime matches stored date) without downloading content
+  const uniqueFiles = [...new Map(allFiles.map(f => [f.id, f])).values()]
+  const changedFiles = uniqueFiles.filter(file => {
+    const existing = existingDocs.get(file.id)
+    if (!existing?.documentDate || !file.modifiedTime) return true
+    return new Date(existing.documentDate).getTime() !== new Date(file.modifiedTime).getTime()
+  })
+
   let synced = 0
-  for (const file of allFiles) {
-    const content = await fetchFileContent(file.id, file.mimeType, accessToken)
-    if (!content) continue
+  const rows: DocumentRow[] = []
 
-    const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
+  await mapWithConcurrency(changedFiles, 8, async (file) => {
+    // One bad file (corrupt PDF, network blip) must not abort the whole sync
+    let content: string | null
+    try {
+      content = await fetchFileContent(file.id, file.mimeType, accessToken)
+    } catch (err) {
+      console.error(`[SYNC] skipping file "${file.name}": ${err instanceof Error ? err.message : err}`)
+      return
+    }
+    if (!content) return
 
-    // Check if already indexed with same content
-    const { data: existing } = await supabaseServer
-      .from('document')
-      .select('id, content_hash')
-      .eq('connection_id', connection.id)
-      .eq('source_id', file.id)
-      .single()
+    const contentHash = hashContent(content)
+    const existing = existingDocs.get(file.id)
+    // Same content + no modifiedTime to refresh — nothing to write
+    if (existing?.contentHash === contentHash && !file.modifiedTime) return
 
-    if (existing?.content_hash === contentHash) continue
+    // Upsert when content changed, or content same but modifiedTime needs refresh
+    // (stale document_date would force a re-download on every future sync)
+    rows.push({
+      connection_id: connection.id,
+      source_type: 'google_drive',
+      source_id: file.id,
+      source_url: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
+      title: file.name,
+      content,
+      author: file.owners?.[0]?.displayName || null,
+      doc_type: file.mimeType,
+      content_hash: contentHash,
+      document_date: file.modifiedTime || new Date().toISOString(),
+    })
+    if (!existing || existing.contentHash !== contentHash) synced++
 
-    // Upsert document
-    await supabaseServer
-      .from('document')
-      .upsert(
-        {
-          connection_id: connection.id,
-          source_type: 'google_drive',
-          source_id: file.id,
-          source_url: file.webViewLink || `https://drive.google.com/file/d/${file.id}/view`,
-          title: file.name,
-          content,
-          author: file.owners?.[0]?.displayName || null,
-          doc_type: file.mimeType,
-          content_hash: contentHash,
-          document_date: file.modifiedTime || new Date().toISOString(),
-        },
-        { onConflict: 'connection_id,source_id' }
-      )
+    // Flush periodically so partial progress survives a timeout
+    // (splice empties the shared array before any await — single-threaded, safe)
+    if (rows.length >= 100) await batchUpsertDocuments(rows.splice(0))
+  })
 
-    synced++
-  }
+  await batchUpsertDocuments(rows)
 
   // Update last_synced_at
   await supabaseServer

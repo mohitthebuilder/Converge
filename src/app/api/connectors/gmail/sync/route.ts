@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/db/supabase-server'
+import { fetchExistingDocs, batchUpsertDocuments, mapWithConcurrency, hashContent, DocumentRow } from '@/lib/db/sync'
+
+export const maxDuration = 60
 
 async function refreshAccessToken(connectionId: string, refreshToken: string): Promise<string> {
   const response = await fetch('https://oauth2.googleapis.com/token', {
@@ -167,55 +170,62 @@ export async function POST(request: NextRequest) {
     pageToken = data.nextPageToken
   } while (pageToken)
 
+  // One batched lookup instead of one query per message (Vercel timeout root cause)
+  const existingDocs = await fetchExistingDocs(connection.id)
+  const seen = new Set<string>()
+  const rows: DocumentRow[] = []
   let synced = 0
-  for (const threadId of threadIds) {
-    const threadResponse = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    )
-    const thread: GmailThread = await threadResponse.json()
+
+  // Threads fetched in parallel (concurrency 5 stays under Gmail's 250 quota units/s:
+  // threads.get costs 10 units). One bad thread must not abort the whole sync.
+  await mapWithConcurrency(threadIds, 5, async (threadId) => {
+    let thread: GmailThread
+    try {
+      const threadResponse = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      )
+      thread = await threadResponse.json()
+    } catch (err) {
+      console.error(`[SYNC] skipping thread ${threadId}: ${err instanceof Error ? err.message : err}`)
+      return
+    }
     const messages = thread.messages || []
-    if (messages.length === 0) continue
+    if (messages.length === 0) return
 
     const subject = getHeader(messages[0], 'Subject') || '(No subject)'
     const threadUrl = `https://mail.google.com/mail/?authuser=${encodeURIComponent(userEmail)}#inbox/${threadId}`
 
     for (const msg of messages) {
+      if (seen.has(msg.id)) continue
+      seen.add(msg.id)
+
       const { content, author, messageDate } = formatMessage(msg, subject)
       if (!content.trim()) continue
 
-      const contentHash = Buffer.from(content).toString('base64').slice(0, 32)
+      const contentHash = hashContent(content)
+      if (existingDocs.get(msg.id)?.contentHash === contentHash) continue
 
-      const { data: existing } = await supabaseServer
-        .from('document')
-        .select('id, content_hash')
-        .eq('connection_id', connection.id)
-        .eq('source_id', msg.id)
-        .single()
-
-      if (existing?.content_hash === contentHash) continue
-
-      await supabaseServer
-        .from('document')
-        .upsert(
-          {
-            connection_id: connection.id,
-            source_type: 'gmail',
-            source_id: msg.id,
-            source_url: threadUrl,
-            title: subject,
-            content,
-            author,
-            doc_type: 'email',
-            content_hash: contentHash,
-            document_date: messageDate || new Date().toISOString(),
-          },
-          { onConflict: 'connection_id,source_id' }
-        )
-
+      rows.push({
+        connection_id: connection.id,
+        source_type: 'gmail',
+        source_id: msg.id,
+        source_url: threadUrl,
+        title: subject,
+        content,
+        author,
+        doc_type: 'email',
+        content_hash: contentHash,
+        document_date: messageDate || new Date().toISOString(),
+      })
       synced++
+
+      // Flush periodically so partial progress survives a timeout
+      if (rows.length >= 100) await batchUpsertDocuments(rows.splice(0))
     }
-  }
+  })
+
+  await batchUpsertDocuments(rows)
 
   await supabaseServer
     .from('connection')
