@@ -36,6 +36,62 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  const chunkSearch = request.nextUrl.searchParams.get('chunk_content')
+  if (chunkSearch) {
+    const { data: chunks } = await supabaseServer
+      .from('chunk')
+      .select('id, content, document_id, chunk_index')
+      .ilike('content', `%${chunkSearch}%`)
+      .limit(20)
+    const docIds = [...new Set(chunks?.map(c => c.document_id) || [])]
+    const { data: docs } = docIds.length > 0
+      ? await supabaseServer.from('document').select('id, title, source_type').in('id', docIds)
+      : { data: [] }
+    const docMap = new Map(docs?.map(d => [d.id, d]) || [])
+    return NextResponse.json({
+      total: chunks?.length || 0,
+      chunks: chunks?.map(c => {
+        const doc = docMap.get(c.document_id)
+        return {
+          docTitle: doc?.title, sourceType: doc?.source_type,
+          chunkIndex: c.chunk_index,
+          content: c.content?.slice(0, 500),
+        }
+      }) || [],
+    })
+  }
+
+  const search = request.nextUrl.searchParams.get('search')
+
+  if (search) {
+    const { data: docs } = await supabaseServer
+      .from('document')
+      .select('id, title, doc_type, source_type, connection_id')
+      .ilike('title', `%${search}%`)
+      .limit(20)
+
+    const docDetails = await Promise.all((docs || []).map(async (doc) => {
+      const { data: chunks } = await supabaseServer
+        .from('chunk')
+        .select('id, chunk_index, content, embedding')
+        .eq('document_id', doc.id)
+        .order('chunk_index')
+        .limit(50)
+      return {
+        ...doc,
+        chunkCount: chunks?.length || 0,
+        embeddedCount: chunks?.filter(c => c.embedding !== null).length || 0,
+        chunkPreviews: chunks?.map(c => ({
+          index: c.chunk_index,
+          hasEmbedding: c.embedding !== null,
+          preview: c.content?.slice(0, 120),
+        })) || [],
+      }
+    }))
+
+    return NextResponse.json({ results: docDetails })
+  }
+
   const [chunks, embeddedChunks, docs, connections] = await Promise.all([
     supabaseServer.from('chunk').select('id', { count: 'exact', head: true }),
     supabaseServer.from('chunk').select('id', { count: 'exact', head: true }).not('embedding', 'is', null),

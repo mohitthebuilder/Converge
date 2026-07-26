@@ -24,7 +24,7 @@ CREATE TRIGGER chunk_search_vector_update
 -- 4. GIN index for fast full-text search
 CREATE INDEX IF NOT EXISTS idx_chunk_search_vector ON chunk USING gin(search_vector);
 
--- 5. BM25 search function
+-- 5. BM25 search function (OR between terms — industry standard, matches Glean/Elasticsearch)
 CREATE OR REPLACE FUNCTION match_chunks_bm25(
   query_text text,
   match_count int DEFAULT 20
@@ -39,9 +39,15 @@ RETURNS TABLE(
     c.id,
     c.content,
     c.document_id,
-    ts_rank_cd(c.search_vector, plainto_tsquery('english', query_text))::real AS rank
+    ts_rank_cd(c.search_vector,
+      to_tsquery('english',
+        regexp_replace(plainto_tsquery('english', query_text)::text, ' & ', ' | ', 'g')
+      )
+    )::real AS rank
   FROM chunk c
-  WHERE c.search_vector @@ plainto_tsquery('english', query_text)
+  WHERE c.search_vector @@ to_tsquery('english',
+    regexp_replace(plainto_tsquery('english', query_text)::text, ' & ', ' | ', 'g')
+  )
   ORDER BY rank DESC
   LIMIT match_count;
 $$ LANGUAGE sql;

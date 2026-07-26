@@ -280,6 +280,36 @@ function chunkBySlides(text: string): Chunk[] {
 
 // ── Paragraph chunking (unchanged) ──
 
+function splitByLines(text: string): string[] {
+  const lines = text.split('\n').filter(l => l.trim().length > 0)
+  if (lines.length <= 1) {
+    const parts: string[] = []
+    for (let i = 0; i < text.length; i += MAX_CHUNK_CHARS) {
+      parts.push(text.slice(i, i + MAX_CHUNK_CHARS))
+    }
+    return parts
+  }
+
+  const parts: string[] = []
+  let current = ''
+  for (const line of lines) {
+    const combined = current ? `${current}\n${line}` : line
+    if ((estimateTokens(combined) > MAX_CHUNK_TOKENS || combined.length > MAX_CHUNK_CHARS) && current) {
+      parts.push(current)
+      current = line.length > MAX_CHUNK_CHARS ? '' : line
+      if (line.length > MAX_CHUNK_CHARS) {
+        for (let i = 0; i < line.length; i += MAX_CHUNK_CHARS) {
+          parts.push(line.slice(i, i + MAX_CHUNK_CHARS))
+        }
+      }
+    } else {
+      current = combined
+    }
+  }
+  if (current.trim()) parts.push(current)
+  return parts
+}
+
 function splitAtSentenceBoundaries(text: string): string[] {
   const sentences = text.match(/[^.!?]+[.!?]+[\s]*/g) || [text]
   const parts: string[] = []
@@ -295,7 +325,16 @@ function splitAtSentenceBoundaries(text: string): string[] {
     }
   }
   if (current.trim()) parts.push(current)
-  return parts
+
+  const result: string[] = []
+  for (const part of parts) {
+    if (part.length > MAX_CHUNK_CHARS) {
+      result.push(...splitByLines(part))
+    } else {
+      result.push(part)
+    }
+  }
+  return result
 }
 
 function chunkByParagraphs(text: string): Chunk[] {
